@@ -10,12 +10,14 @@ from app.character import create_character
 from app.tools import (
     TOOLS,
     ability_check,
+    add_item,
     attack,
     encounter,
     enemy_attack,
     execute_tool,
     lookup,
     post_quest,
+    remove_item,
     roll,
     tool_result_message,
 )
@@ -217,3 +219,45 @@ def test_execute_tool_post_quest():
     r = execute_tool("post_quest", {"title": "送信", "reward": "10 金币"}, c)
     assert r["quest"]["title"] == "送信"
     assert c["quests"][0]["reward"] == "10 金币"
+
+
+def test_add_item_merges_quantity():
+    c = create_character("T", "Human", "Fighter")
+    r = add_item(c, "治疗药水", "恢复 2d4+2 生命", 2)
+    assert c["inventory"] == [{"name": "治疗药水", "description": "恢复 2d4+2 生命", "quantity": 2}]
+    assert r["total"] == 1
+    add_item(c, "治疗药水", quantity=1)  # 同名合并
+    assert c["inventory"][0]["quantity"] == 3
+    assert len(c["inventory"]) == 1
+    add_item(c, "长剑", "精制铁剑", 1)
+    assert len(c["inventory"]) == 2
+
+
+def test_remove_item_consume_and_discard():
+    c = create_character("T", "Human", "Fighter")
+    add_item(c, "治疗药水", quantity=2)
+    r = remove_item(c, "治疗药水", 1)
+    assert r["removed"] is False
+    assert c["inventory"][0]["quantity"] == 1
+    r2 = remove_item(c, "治疗药水", 1)
+    assert r2["removed"] is True
+    assert c["inventory"] == []  # 归零移除
+
+
+def test_remove_item_errors():
+    import pytest as pt
+
+    c = create_character("T", "Human", "Fighter")
+    add_item(c, "火把", quantity=1)
+    with pt.raises(ValueError):
+        remove_item(c, "火把", 2)  # 数量不足
+    with pt.raises(ValueError):
+        remove_item(c, "不存在的东西")  # 背包没有
+
+
+def test_execute_tool_inventory():
+    c = create_character("T", "Human", "Fighter")
+    r = execute_tool("add_item", {"name": "干粮", "quantity": 3}, c)
+    assert r["item"]["name"] == "干粮"
+    r2 = execute_tool("remove_item", {"name": "干粮", "quantity": 2}, c)
+    assert c["inventory"][0]["quantity"] == 1

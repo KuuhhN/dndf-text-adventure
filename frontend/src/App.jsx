@@ -253,6 +253,10 @@ function formatTool(evt) {
       return `📖 ${r.name}: ${r.hp !== undefined ? `HP ${r.hp} · AC ${r.ac}` : r.level !== undefined ? `Lv.${r.level} ${r.school}` : r.category}`;
     case "post_quest":
       return `📜 ${r.quest.title}${r.quest.reward ? `（${r.quest.reward}）` : ""} → ${r.quest.status === "accepted" ? "已接下" : "已登记到告示栏"}`;
+    case "add_item":
+      return `🎒 获得 ${r.item.name}${r.item.quantity > 1 ? ` ×${r.item.quantity}` : ""}${r.note === "数量增加" ? "（数量 +1）" : ""}`;
+    case "remove_item":
+      return `${r.removed ? "🗑️ 已移除" : "🎒 已消耗"} ${r.item.name}${r.item.quantity ? `（剩余 ×${r.item.quantity}）` : ""}`;
     default:
       return JSON.stringify(r);
   }
@@ -301,6 +305,18 @@ function GameView({ character, messages, input, busy, setInput, send, sendText, 
                 <span className={`quest-status ${q.status}`}>
                   {q.status === "accepted" ? "已接下" : "悬赏中"}
                 </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {c.inventory?.length > 0 && (
+          <div className="inventory">
+            <h3>🎒 背包</h3>
+            {c.inventory.map((it, i) => (
+              <div key={i} className="inv-item" title={it.description || ""}>
+                <span className="inv-name">{it.name}</span>
+                {it.quantity > 1 && <span className="inv-qty">×{it.quantity}</span>}
+                {it.description && <span className="inv-desc">{it.description}</span>}
               </div>
             ))}
           </div>

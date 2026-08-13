@@ -75,6 +75,39 @@ def _quests(character: dict) -> list[dict]:
     return character.setdefault("quests", [])
 
 
+def _inventory(character: dict) -> list[dict]:
+    return character.setdefault("inventory", [])
+
+
+def add_item(character: dict, name: str, description: str = "", quantity: int = 1) -> dict:
+    """获得物品入背包：同名合并数量。返回最新背包状态。"""
+    if quantity < 1:
+        raise ValueError("数量必须为正整数")
+    items = _inventory(character)
+    for it in items:
+        if it["name"] == name:
+            it["quantity"] += quantity
+            return {"type": "inventory", "item": it, "total": len(items), "note": "数量增加"}
+    item = {"name": name, "description": description, "quantity": quantity}
+    items.append(item)
+    return {"type": "inventory", "item": item, "total": len(items), "note": "新物品入包"}
+
+
+def remove_item(character: dict, name: str, quantity: int = 1) -> dict:
+    """消耗/丢弃物品：扣减数量，归零移除。数量不足报错。"""
+    items = _inventory(character)
+    for it in items:
+        if it["name"] == name:
+            if it["quantity"] < quantity:
+                raise ValueError(f"{name} 数量不足（现有 {it['quantity']}）")
+            it["quantity"] -= quantity
+            removed = it["quantity"] <= 0
+            if removed:
+                items.remove(it)
+            return {"type": "inventory", "item": {"name": name, "quantity": max(it.get("quantity", 0) if not removed else 0, 0)}, "removed": removed, "total": len(items)}
+    raise ValueError(f"背包中没有 {name}")
+
+
 def post_quest(
     character: dict,
     title: str,
@@ -316,6 +349,37 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "add_item",
+            "description": "物品入背包。玩家获得/拾取/购买/搜刮到物品（战利品、药水、任务物品、金币外的财物）时必须调用，记录名称/简述/数量。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "物品名（中文），如 治疗药水"},
+                    "description": {"type": "string", "description": "物品简述（1 句话）"},
+                    "quantity": {"type": "integer", "description": "数量，默认 1"},
+                },
+                "required": ["name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "remove_item",
+            "description": "物品出背包。玩家消耗/使用/丢弃/交出物品（喝药水、交任务物品、送人）时必须调用，扣减数量。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "物品名（中文），须与入包时一致"},
+                    "quantity": {"type": "integer", "description": "数量，默认 1"},
+                },
+                "required": ["name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "lookup",
             "description": "查询 D&D 5e 规则数据（怪物/法术/装备）。玩家询问怪物信息、想施法或购买装备时使用。",
             "parameters": {
@@ -347,6 +411,10 @@ def execute_tool(name: str, args: dict, character: dict | None = None) -> dict:
         if name == "post_quest":
             return post_quest(character, args["title"], args.get("description", ""),
                               args.get("reward", ""), args.get("status", "available"))
+        if name == "add_item":
+            return add_item(character, args["name"], args.get("description", ""), args.get("quantity", 1))
+        if name == "remove_item":
+            return remove_item(character, args["name"], args.get("quantity", 1))
         if name == "lookup":
             return lookup(args["kind"], args["name"])
         return {"error": f"未知工具: {name}"}
