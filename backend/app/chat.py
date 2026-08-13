@@ -73,7 +73,7 @@ async def game_chat(session_id: str, message: str) -> AsyncIterator[dict]:
     for _round in range(MAX_TOOL_ROUNDS):
         calls = []
         texts = []
-        async for event in stream_chat(messages, tools=tools.TOOLS, max_tokens=900):
+        async for event in stream_chat(messages, tools=tools.TOOLS, max_tokens=700):
             if event["type"] == "delta":
                 texts.append(event["text"])
             elif event["type"] == "tool_call":

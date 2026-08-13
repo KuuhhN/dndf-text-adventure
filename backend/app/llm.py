@@ -12,7 +12,8 @@ from typing import AsyncIterator, Optional
 import httpx
 
 BASE_URL = os.environ.get("LLM_BASE_URL", "https://opencode.ai/zen/go/v1")
-MODEL = os.environ.get("LLM_MODEL", "kimi-k3")
+# 默认用 deepseek-v4-flash：响应快（叙事 5-15s vs kimi-k3 30-60s）；追求叙事质量可 LLM_MODEL=kimi-k3
+MODEL = os.environ.get("LLM_MODEL", "deepseek-v4-flash")
 PROXY = os.environ.get("LLM_PROXY", "http://127.0.0.1:7890")
 UA = os.environ.get(
     "LLM_UA",

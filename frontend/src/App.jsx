@@ -3,6 +3,32 @@ import "./App.css";
 
 const API = "http://localhost:8000";
 
+// ---- 中文化映射（展示层；value/key 保持英文供 SRD 数据与工具调用使用）----
+const ZH = {
+  // 种族
+  Dwarf: "矮人", Elf: "精灵", Human: "人类", Halfling: "半身人",
+  Dragonborn: "龙裔", Gnome: "侏儒", "Half-Elf": "半精灵", "Half-Orc": "半兽人", Tiefling: "提夫林",
+  // 职业
+  Barbarian: "野蛮人", Bard: "诗人", Cleric: "牧师", Druid: "德鲁伊",
+  Fighter: "战士", Monk: "武僧", Paladin: "圣武士", Ranger: "游侠",
+  Rogue: "游荡者", Sorcerer: "术士", Warlock: "邪术师", Wizard: "法师",
+  // 属性
+  STR: "力量", DEX: "敏捷", CON: "体质", INT: "智力", WIS: "感知", CHA: "魅力",
+  // 技能
+  Acrobatics: "特技", "Animal Handling": "驯兽", Arcana: "奥术", Athletics: "运动",
+  Deception: "欺瞒", History: "历史", Insight: "洞察", Intimidation: "威吓",
+  Investigation: "调查", Medicine: "医疗", Nature: "自然", Perception: "察觉",
+  Performance: "表演", Persuasion: "说服", Religion: "宗教", "Sleight of Hand": "巧手",
+  "Sleight Of Hand": "巧手", // 部分职业数据用大写 Of
+  Stealth: "潜行", Survival: "生存",
+  // 常用怪物
+  Goblin: "哥布林", Orc: "兽人", Wolf: "狼", "Giant Rat": "巨鼠", "Giant Spider": "巨型蜘蛛",
+  Zombie: "僵尸", Skeleton: "骷髅", Kobold: "狗头人", Bandit: "强盗", Bear: "熊",
+  "Dire Wolf": "恐狼", Hobgoblin: "霍布哥布林", Bugbear: "熊地精", "Giant Boar": "巨野猪",
+  "Giant Wolf Spider": "巨型狼蛛", "Goblin Boss": "哥布林首领", "Goblin Archer": "哥布林弓箭手",
+};
+const t = (k) => ZH[k] || k; // 未知名称回退英文
+
 function App() {
   const [races, setRaces] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -48,12 +74,12 @@ function App() {
     setSession({ id: d.session_id, character: d.character });
     setMessages([]);
     refreshSessions();
-    // 自动触发 DM 开场
-    setTimeout(() => sendText("冒险开始！请描绘酒馆场景，介绍我面前的机会。"), 100);
+    // 自动触发 DM 开场（显式传 sessionId，避免 setState 异步导致闭包拿不到）
+    setTimeout(() => sendText("冒险开始！请描绘酒馆场景，介绍我面前的机会。", d.session_id), 100);
   }
 
-  async function sendText(text) {
-    if (!text.trim() || busy) return;
+  async function sendText(text, sessionId = session?.id) {
+    if (!text.trim() || busy || !sessionId) return;
     setInput("");
     setBusy(true);
     setMessages((prev) => [...prev, { role: "user", content: text }]);
@@ -62,7 +88,7 @@ function App() {
     const resp = await fetch(`${API}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: session.id, message: text }),
+      body: JSON.stringify({ session_id: sessionId, message: text }),
     });
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
@@ -90,7 +116,7 @@ function App() {
         } else if (evt.type === "tool") {
           setMessages((prev) => [...prev, { role: "tool", content: formatTool(evt) }]);
           // 工具副作用（HP/敌人/经验）后刷新角色卡
-          const d = await (await fetch(`${API}/api/session/${session.id}`)).json();
+          const d = await (await fetch(`${API}/api/session/${sessionId}`)).json();
           setSession((prev) => ({ ...prev, character: d.character }));
         } else if (evt.type === "error") {
           setMessages((prev) => [...prev, { role: "error", content: evt.text }]);
@@ -172,13 +198,13 @@ function CreateWizard({ races, classes, onSubmit }) {
       <label>种族
         <select value={form.race} onChange={set("race")}>
           <option value="">选择种族…</option>
-          {races.map((r) => <option key={r} value={r}>{r}</option>)}
+          {races.map((r) => <option key={r} value={r}>{t(r)}</option>)}
         </select>
       </label>
       <label>职业
         <select value={form.class_name} onChange={onClassChange}>
           <option value="">选择职业…</option>
-          {classes.map((c) => <option key={c} value={c}>{c}</option>)}
+          {classes.map((c) => <option key={c} value={c}>{t(c)}</option>)}
         </select>
       </label>
       {skillChoices && (
@@ -194,7 +220,7 @@ function CreateWizard({ races, classes, onSubmit }) {
                   checked={form.chosen_skills.includes(s)}
                   onChange={() => toggleSkill(s)}
                 />
-                {s}
+                {t(s)}
               </label>
             ))}
           </div>
@@ -238,7 +264,7 @@ function GameView({ character, messages, input, busy, setInput, send, sendText, 
         <div className="sheet-head">
           <h2>{c.name}</h2>
           <div className="meta">
-            {c.race} {c.class} · Lv.{c.level}
+            {t(c.race)} {t(c.class)} · Lv.{c.level}
           </div>
           <div className="bars">
             <div className="bar">❤️ HP {c.current_hp}/{c.max_hp} · Lv.{c.level} · XP {c.xp}</div>
@@ -249,7 +275,7 @@ function GameView({ character, messages, input, busy, setInput, send, sendText, 
               <h3>⚔️ 敌人</h3>
               {c.combat.enemies.map((e, i) => (
                 <div key={i} className="enemy">
-                  <span>{e.name}</span>
+                  <span>{t(e.name)}</span>
                   <div className="hp-bar">
                     <div
                       className="hp-fill"
@@ -265,7 +291,7 @@ function GameView({ character, messages, input, busy, setInput, send, sendText, 
         <div className="abilities">
           {Object.entries(c.abilities).map(([ab, val]) => (
             <div key={ab} className="ability">
-              <div className="ab-name">{ab}</div>
+              <div className="ab-name">{t(ab)}</div>
               <div className="ab-score">{val}</div>
               <div className="ab-mod">{c.modifiers[ab] >= 0 ? "+" : ""}{c.modifiers[ab]}</div>
             </div>
@@ -275,7 +301,7 @@ function GameView({ character, messages, input, busy, setInput, send, sendText, 
           <h3>技能</h3>
           {Object.entries(c.skills).map(([sk, val]) => (
             <div key={sk} className="skill">
-              <span>{sk}</span>
+              <span>{t(sk)}</span>
               <span className={val >= 0 ? "pos" : "neg"}>{val >= 0 ? "+" : ""}{val}</span>
             </div>
           ))}
@@ -309,7 +335,9 @@ function GameView({ character, messages, input, busy, setInput, send, sendText, 
             placeholder="输入你的行动…"
             disabled={busy}
           />
-          <button onClick={send} disabled={busy}>{busy ? "…" : "行动"}</button>
+          <button onClick={send} disabled={busy} className={busy ? "waiting" : ""}>
+            {busy ? "DM 构思中…" : "行动"}
+          </button>
         </div>
       </footer>
     </div>
