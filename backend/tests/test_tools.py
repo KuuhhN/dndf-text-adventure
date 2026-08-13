@@ -15,6 +15,7 @@ from app.tools import (
     enemy_attack,
     execute_tool,
     lookup,
+    post_quest,
     roll,
     tool_result_message,
 )
@@ -197,3 +198,22 @@ def test_enemy_attack_damages_player():
     assert c["current_hp"] == max(0, old_hp - r["damage"])
     assert r["player_hp"] == c["current_hp"]
     assert r["player_dead"] == (c["current_hp"] <= 0)
+
+
+def test_post_quest_adds_and_dedupes():
+    c = create_character("T", "Human", "Fighter")
+    r = post_quest(c, "幽影矿洞的怪声", "查明矿洞怪声真相", "50 金币")
+    assert r["quest"]["title"] == "幽影矿洞的怪声"
+    assert c["quests"] == [{"title": "幽影矿洞的怪声", "description": "查明矿洞怪声真相", "reward": "50 金币", "status": "available"}]
+    # 同名任务去重 + 状态更新
+    r2 = post_quest(c, "幽影矿洞的怪声", status="accepted")
+    assert len(c["quests"]) == 1
+    assert c["quests"][0]["status"] == "accepted"
+    assert "已存在" in r2["note"]
+
+
+def test_execute_tool_post_quest():
+    c = create_character("T", "Human", "Fighter")
+    r = execute_tool("post_quest", {"title": "送信", "reward": "10 金币"}, c)
+    assert r["quest"]["title"] == "送信"
+    assert c["quests"][0]["reward"] == "10 金币"

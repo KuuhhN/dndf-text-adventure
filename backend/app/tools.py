@@ -71,6 +71,28 @@ def _combat(character: dict) -> dict:
     return character.setdefault("combat", {"enemies": []})
 
 
+def _quests(character: dict) -> list[dict]:
+    return character.setdefault("quests", [])
+
+
+def post_quest(
+    character: dict,
+    title: str,
+    description: str = "",
+    reward: str = "",
+    status: str = "available",
+) -> dict:
+    """注册任务到告示栏（引擎状态）。叙事中出现悬赏/委托时由 LLM 调用。"""
+    quests = _quests(character)
+    for q in quests:
+        if q["title"] == title:  # 同名任务去重，仅更新状态
+            q["status"] = status
+            return {"type": "quest", "quest": q, "note": "任务已存在，状态已更新"}
+    quest = {"title": title, "description": description, "reward": reward, "status": status}
+    quests.append(quest)
+    return {"type": "quest", "quest": quest}
+
+
 def encounter(character: dict, monsters: list[str]) -> dict:
     """把怪物拉入战斗。返回每个怪物的 HP/AC。"""
     combat = _combat(character)
@@ -277,6 +299,23 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "post_quest",
+            "description": "把任务/悬赏注册到告示栏。叙事中出现委托、悬赏、任务公告（告示板、委托信、NPC 委托）时必须调用，把任务标题/简述/赏金记录到引擎状态，供玩家在告示栏查看。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "任务标题，如 幽影矿洞的怪声"},
+                    "description": {"type": "string", "description": "任务简述（1 句话）"},
+                    "reward": {"type": "string", "description": "赏金，如 50 金币"},
+                    "status": {"type": "string", "enum": ["available", "accepted"], "description": "available=悬赏中（默认），accepted=玩家已接下"},
+                },
+                "required": ["title"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "lookup",
             "description": "查询 D&D 5e 规则数据（怪物/法术/装备）。玩家询问怪物信息、想施法或购买装备时使用。",
             "parameters": {
@@ -305,6 +344,9 @@ def execute_tool(name: str, args: dict, character: dict | None = None) -> dict:
             return encounter(character, args["monsters"])
         if name == "enemy_attack":
             return enemy_attack(character, args["attacker"])
+        if name == "post_quest":
+            return post_quest(character, args["title"], args.get("description", ""),
+                              args.get("reward", ""), args.get("status", "available"))
         if name == "lookup":
             return lookup(args["kind"], args["name"])
         return {"error": f"未知工具: {name}"}

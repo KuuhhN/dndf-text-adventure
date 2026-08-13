@@ -251,6 +251,8 @@ function formatTool(evt) {
       return `⚔️ 攻击 ${r.target}（AC ${r.target_ac}）：攻击掷 ${r.attack_roll} + ${r.to_hit_bonus} = ${r.attack_total} → ${r.hit ? "命中！" : "未命中"}${r.damage ? `，伤害 ${r.damage}${r.crit ? "（重击！）" : ""}` : ""}`;
     case "lookup":
       return `📖 ${r.name}: ${r.hp !== undefined ? `HP ${r.hp} · AC ${r.ac}` : r.level !== undefined ? `Lv.${r.level} ${r.school}` : r.category}`;
+    case "post_quest":
+      return `📜 ${r.quest.title}${r.quest.reward ? `（${r.quest.reward}）` : ""} → ${r.quest.status === "accepted" ? "已接下" : "已登记到告示栏"}`;
     default:
       return JSON.stringify(r);
   }
@@ -287,6 +289,22 @@ function GameView({ character, messages, input, busy, setInput, send, sendText, 
               ))}
             </div>
           )}
+        {c.quests?.length > 0 && (
+          <div className="quest-board">
+            <h3>📜 任务告示</h3>
+            {c.quests.map((q, i) => (
+              <div key={i} className={`quest-note ${q.status === "accepted" ? "accepted" : ""}`}>
+                <div className="pin" />
+                <div className="quest-title">{q.title}</div>
+                {q.reward && <span className="quest-reward">💰 {q.reward}</span>}
+                {q.description && <div className="quest-desc">{q.description}</div>}
+                <span className={`quest-status ${q.status}`}>
+                  {q.status === "accepted" ? "已接下" : "悬赏中"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
         </div>
         <div className="abilities">
           {Object.entries(c.abilities).map(([ab, val]) => (

@@ -6,7 +6,7 @@
 
 body {
   font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
-  background: #1a1a2e;
+  background: #241a12; /* 深橡木桌面 */
   color: #eee;
 }
 
@@ -24,6 +24,44 @@ body {
   gap: 16px;
 }
 
+.wizard h1 {
+  text-align: center;
+  font-size: 26px;
+  font-family: "KaiTi", "STKaiti", "SimSun", serif;
+  color: #e9d8ae;
+  letter-spacing: 4px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.wizard .sub {
+  text-align: center;
+  color: #b09a72;
+  margin-bottom: 12px;
+}
+
+.wizard label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: #c9a86a;
+}
+
+.wizard input,
+.wizard select {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #c9a86a;
+  background: #f2e4c0;
+  color: #3a2a14;
+  font-size: 15px;
+  font-family: "KaiTi", "STKaiti", serif;
+}
+
+.wizard input::placeholder {
+  color: #a08a5f;
+}
+
 .home {
   max-width: 420px;
   margin: 0 auto;
@@ -38,19 +76,21 @@ body {
 
 .continue h3 {
   font-size: 15px;
-  color: #9aa;
+  color: #b09a72;
   margin-bottom: 4px;
+  font-family: "KaiTi", "STKaiti", serif;
 }
 
 .save-item {
   text-align: left;
   padding: 10px 14px;
   border-radius: 8px;
-  border: 1px solid #0f3460;
-  background: #22223b;
-  color: #ddd;
+  border: 1px solid #c9a86a;
+  background: #f2e4c0;
+  color: #5a4226;
   font-size: 14px;
   cursor: pointer;
+  font-family: "KaiTi", "STKaiti", serif;
 }
 
 .save-item:hover {
@@ -92,10 +132,13 @@ button.primary {
   padding: 12px;
   border: none;
   border-radius: 8px;
-  background: #e94560;
-  color: #fff;
+  background: linear-gradient(180deg, #d9b45c, #b8912f);
+  color: #3a2a14;
   font-size: 16px;
+  font-weight: 700;
   cursor: pointer;
+  font-family: "KaiTi", "STKaiti", serif;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 button.primary:disabled {
@@ -126,21 +169,23 @@ button.primary:disabled {
   gap: 6px;
   padding: 6px 10px;
   border-radius: 16px;
-  border: 1px solid #0f3460;
-  background: #22223b;
+  border: 1px solid #c9a86a;
+  background: #f2e4c0;
   font-size: 13px;
   cursor: pointer;
-  color: #ccd;
+  color: #5a4226;
+  font-family: "KaiTi", "STKaiti", serif;
 }
 
 .chip input {
-  accent-color: #e94560;
+  accent-color: #b8912f;
 }
 
 .chip.on {
-  border-color: #e94560;
-  background: #3a1f2b;
-  color: #fff;
+  border-color: #a8842f;
+  background: #e3c06a;
+  color: #3a2a14;
+  font-weight: 700;
 }
 
 /* ---- 游戏主界面 ---- */
@@ -157,17 +202,25 @@ button.primary:disabled {
 .sheet {
   grid-area: sheet;
   overflow-y: auto;
-  background: #16213e;
-  border-right: 1px solid #0f3460;
+  background: #e9d8ae; /* 羊皮纸 */
+  background-image:
+    radial-gradient(ellipse at 20% 10%, rgba(255, 245, 210, 0.5), transparent 60%),
+    radial-gradient(ellipse at 90% 80%, rgba(150, 110, 60, 0.25), transparent 55%),
+    repeating-linear-gradient(0deg, rgba(120, 90, 40, 0.03) 0 2px, transparent 2px 5px);
+  color: #4a3620;
+  border-right: 3px solid #6b4f2a;
   padding: 18px;
 }
 
 .sheet-head h2 {
-  font-size: 20px;
+  font-size: 21px;
+  font-family: "KaiTi", "STKaiti", "SimSun", serif;
+  color: #3a2a14;
+  letter-spacing: 1px;
 }
 
 .sheet-head .meta {
-  color: #9aa;
+  color: #7a5c33;
   margin: 4px 0 10px;
 }
 
@@ -179,7 +232,9 @@ button.primary:disabled {
 }
 
 .bar {
-  background: #22223b;
+  background: #f2e4c0;
+  border: 1px solid #c9a86a;
+  color: #4a3620;
   padding: 8px 10px;
   border-radius: 6px;
   font-size: 13px;
@@ -193,31 +248,36 @@ button.primary:disabled {
 }
 
 .ability {
-  background: #22223b;
+  background: #f2e4c0;
+  border: 1px solid #c9a86a;
   border-radius: 8px;
   text-align: center;
   padding: 8px 4px;
+  box-shadow: inset 0 1px 2px rgba(90, 60, 20, 0.15);
 }
 
 .ability .ab-name {
   font-size: 11px;
-  color: #9aa;
+  color: #8a6a3a;
 }
 
 .ability .ab-score {
   font-size: 20px;
   font-weight: 700;
+  color: #3a2a14;
 }
 
 .ability .ab-mod {
   font-size: 13px;
-  color: #7dd87d;
+  color: #5d7a3a;
+  font-weight: 600;
 }
 
 .skills h3 {
   font-size: 14px;
   margin-bottom: 6px;
-  color: #9aa;
+  color: #7a5c33;
+  font-family: "KaiTi", "STKaiti", serif;
 }
 
 .skill {
@@ -225,21 +285,23 @@ button.primary:disabled {
   justify-content: space-between;
   font-size: 13px;
   padding: 3px 0;
-  border-bottom: 1px solid #1e2a45;
+  border-bottom: 1px dashed #c9a86a;
 }
 
 .skill .pos {
-  color: #7dd87d;
+  color: #4d7a2f;
+  font-weight: 600;
 }
 
 .skill .neg {
-  color: #e94560;
+  color: #a0342c;
 }
 
 .enemies h3 {
   font-size: 14px;
   margin: 10px 0 6px;
-  color: #ff9d9d;
+  color: #8c2f24;
+  font-family: "KaiTi", "STKaiti", serif;
 }
 
 .enemy {
@@ -260,21 +322,128 @@ button.primary:disabled {
 
 .hp-bar {
   height: 8px;
-  background: #22223b;
+  background: #d9c39a;
   border-radius: 4px;
   overflow: hidden;
 }
 
 .hp-fill {
   height: 100%;
-  background: #e94560;
+  background: linear-gradient(90deg, #a0342c, #d2603a);
   border-radius: 4px;
   transition: width 0.3s;
 }
 
 .hp-num {
-  color: #9aa;
+  color: #7a5c33;
   font-size: 12px;
+}
+
+/* ---- 任务告示栏 ---- */
+.quest-board {
+  margin-top: 16px;
+  border-top: 2px solid #6b4f2a;
+  padding-top: 10px;
+}
+
+.quest-board h3 {
+  font-size: 15px;
+  color: #3a2a14;
+  font-family: "KaiTi", "STKaiti", serif;
+  margin-bottom: 10px;
+  text-align: center;
+  letter-spacing: 3px;
+}
+
+.quest-note {
+  position: relative;
+  background: #f5ecd7;
+  border: 1px solid #c9a86a;
+  border-radius: 4px;
+  padding: 12px 12px 10px;
+  margin-bottom: 14px;
+  box-shadow: 2px 3px 6px rgba(60, 40, 10, 0.35);
+}
+
+.quest-note:nth-child(odd) {
+  transform: rotate(-0.8deg);
+}
+
+.quest-note:nth-child(even) {
+  transform: rotate(0.6deg);
+}
+
+.quest-note.accepted {
+  border-color: #6d8a4a;
+  background: #eef0d8;
+}
+
+.pin {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #e88a8a, #b33a3a 60%, #7a2020);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
+}
+
+.quest-title {
+  font-family: "KaiTi", "STKaiti", serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #3a2a14;
+  margin-bottom: 4px;
+}
+
+.quest-reward {
+  display: inline-block;
+  background: #e3c06a;
+  border: 1px solid #a8842f;
+  color: #5c4408;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 1px 9px;
+  margin-bottom: 4px;
+}
+
+.quest-desc {
+  font-size: 12px;
+  color: #7a5c33;
+  line-height: 1.6;
+  margin-bottom: 6px;
+}
+
+.quest-status {
+  display: inline-block;
+  font-size: 11px;
+  border-radius: 3px;
+  padding: 1px 8px;
+}
+
+.quest-status.available {
+  background: #d9c39a;
+  color: #6b4f2a;
+}
+
+.quest-status.accepted {
+  background: #6d8a4a;
+  color: #fff;
+}
+
+button.ghost {
+  margin-top: 14px;
+  width: 100%;
+  padding: 8px;
+  border: 1px dashed #a8842f;
+  border-radius: 6px;
+  background: none;
+  color: #7a5c33;
+  cursor: pointer;
+  font-family: "KaiTi", "STKaiti", serif;
 }
 
 button.ghost {
@@ -296,11 +465,12 @@ button.ghost {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  background: radial-gradient(ellipse at 50% 0%, #2b2015, #241a12 70%);
 }
 
 .hint {
   text-align: center;
-  color: #667;
+  color: #8a7350;
   margin-top: 40px;
   font-size: 14px;
   line-height: 1.8;
@@ -317,13 +487,16 @@ button.ghost {
 
 .msg.user {
   align-self: flex-end;
-  background: #0f3460;
+  background: #4a3220;
+  border: 1px solid #6b4f2a;
+  color: #f0e2c0;
 }
 
 .msg.assistant {
   align-self: flex-start;
-  background: #22223b;
-  border: 1px solid #0f3460;
+  background: #2e2318;
+  border: 1px solid #5a4226;
+  color: #e8dcc0;
 }
 
 .msg.error {
@@ -335,9 +508,9 @@ button.ghost {
 
 .msg.tool {
   align-self: center;
-  background: #1e2a45;
-  border: 1px solid #0f3460;
-  color: #9fc5ff;
+  background: #3a2c1c;
+  border: 1px solid #6b4f2a;
+  color: #d8b46a;
   font-family: "Consolas", monospace;
   font-size: 13px;
   padding: 8px 14px;
@@ -350,7 +523,8 @@ button.ghost {
   flex-direction: column;
   gap: 10px;
   padding: 12px 20px 14px;
-  background: #16213e;
+  background: #1c140d;
+  border-top: 2px solid #6b4f2a;
 }
 
 .quick-actions {
@@ -361,16 +535,16 @@ button.ghost {
 .quick-actions button {
   padding: 6px 14px;
   border-radius: 16px;
-  border: 1px solid #0f3460;
-  background: #22223b;
-  color: #ccd;
+  border: 1px solid #6b4f2a;
+  background: #2e2318;
+  color: #d8b46a;
   font-size: 13px;
   cursor: pointer;
 }
 
 .quick-actions button:hover:not(:disabled) {
-  border-color: #e94560;
-  color: #fff;
+  border-color: #d9b45c;
+  color: #f0e2c0;
 }
 
 .quick-actions button:disabled {
@@ -387,9 +561,9 @@ button.ghost {
   flex: 1;
   padding: 10px 14px;
   border-radius: 8px;
-  border: 1px solid #0f3460;
-  background: #22223b;
-  color: #eee;
+  border: 1px solid #6b4f2a;
+  background: #2e2318;
+  color: #f0e2c0;
   font-size: 15px;
 }
 
@@ -397,10 +571,12 @@ button.ghost {
   padding: 10px 22px;
   border-radius: 8px;
   border: none;
-  background: #e94560;
-  color: #fff;
+  background: linear-gradient(180deg, #d9b45c, #b8912f);
+  color: #3a2a14;
   font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
+  font-family: "KaiTi", "STKaiti", serif;
 }
 
 .input-row button:disabled {

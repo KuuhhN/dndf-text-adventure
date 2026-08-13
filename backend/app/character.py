@@ -138,6 +138,7 @@ def create_character(
         "spells": [],
         "xp": 0,
         "combat": {"enemies": []},
+        "quests": [],
     }
 
 
