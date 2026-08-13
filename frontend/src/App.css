@@ -1,0 +1,409 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  background: #1a1a2e;
+  color: #eee;
+}
+
+.app {
+  height: 100vh;
+}
+
+/* ---- 创建向导 ---- */
+.wizard {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 40px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.home {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.continue {
+  margin: 24px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.continue h3 {
+  font-size: 15px;
+  color: #9aa;
+  margin-bottom: 4px;
+}
+
+.save-item {
+  text-align: left;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #0f3460;
+  background: #22223b;
+  color: #ddd;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.save-item:hover {
+  border-color: #e94560;
+  color: #fff;
+}
+
+.wizard h1 {
+  text-align: center;
+  font-size: 26px;
+}
+
+.wizard .sub {
+  text-align: center;
+  color: #9aa;
+  margin-bottom: 12px;
+}
+
+.wizard label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: #aab;
+}
+
+.wizard input,
+.wizard select {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #0f3460;
+  background: #22223b;
+  color: #eee;
+  font-size: 15px;
+}
+
+button.primary {
+  margin-top: 8px;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #e94560;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+button.primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.skill-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skill-pick-title {
+  font-size: 14px;
+  color: #aab;
+}
+
+.skill-pick-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 16px;
+  border: 1px solid #0f3460;
+  background: #22223b;
+  font-size: 13px;
+  cursor: pointer;
+  color: #ccd;
+}
+
+.chip input {
+  accent-color: #e94560;
+}
+
+.chip.on {
+  border-color: #e94560;
+  background: #3a1f2b;
+  color: #fff;
+}
+
+/* ---- 游戏主界面 ---- */
+.game {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  grid-template-rows: 1fr auto;
+  grid-template-areas:
+    "sheet chat"
+    "sheet input";
+  height: 100vh;
+}
+
+.sheet {
+  grid-area: sheet;
+  overflow-y: auto;
+  background: #16213e;
+  border-right: 1px solid #0f3460;
+  padding: 18px;
+}
+
+.sheet-head h2 {
+  font-size: 20px;
+}
+
+.sheet-head .meta {
+  color: #9aa;
+  margin: 4px 0 10px;
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.bar {
+  background: #22223b;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.abilities {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ability {
+  background: #22223b;
+  border-radius: 8px;
+  text-align: center;
+  padding: 8px 4px;
+}
+
+.ability .ab-name {
+  font-size: 11px;
+  color: #9aa;
+}
+
+.ability .ab-score {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.ability .ab-mod {
+  font-size: 13px;
+  color: #7dd87d;
+}
+
+.skills h3 {
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: #9aa;
+}
+
+.skill {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 3px 0;
+  border-bottom: 1px solid #1e2a45;
+}
+
+.skill .pos {
+  color: #7dd87d;
+}
+
+.skill .neg {
+  color: #e94560;
+}
+
+.enemies h3 {
+  font-size: 14px;
+  margin: 10px 0 6px;
+  color: #ff9d9d;
+}
+
+.enemy {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.enemy span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hp-bar {
+  height: 8px;
+  background: #22223b;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.hp-fill {
+  height: 100%;
+  background: #e94560;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.hp-num {
+  color: #9aa;
+  font-size: 12px;
+}
+
+button.ghost {
+  margin-top: 14px;
+  width: 100%;
+  padding: 8px;
+  border: 1px dashed #0f3460;
+  border-radius: 6px;
+  background: none;
+  color: #9aa;
+  cursor: pointer;
+}
+
+/* ---- 聊天区 ---- */
+.chat {
+  grid-area: chat;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hint {
+  text-align: center;
+  color: #667;
+  margin-top: 40px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.msg {
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.msg.user {
+  align-self: flex-end;
+  background: #0f3460;
+}
+
+.msg.assistant {
+  align-self: flex-start;
+  background: #22223b;
+  border: 1px solid #0f3460;
+}
+
+.msg.error {
+  align-self: center;
+  background: #4a1a1a;
+  color: #ff9d9d;
+  font-size: 13px;
+}
+
+.msg.tool {
+  align-self: center;
+  background: #1e2a45;
+  border: 1px solid #0f3460;
+  color: #9fc5ff;
+  font-family: "Consolas", monospace;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 8px;
+}
+
+.input-bar {
+  grid-area: input;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 20px 14px;
+  background: #16213e;
+}
+
+.quick-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.quick-actions button {
+  padding: 6px 14px;
+  border-radius: 16px;
+  border: 1px solid #0f3460;
+  background: #22223b;
+  color: #ccd;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.quick-actions button:hover:not(:disabled) {
+  border-color: #e94560;
+  color: #fff;
+}
+
+.quick-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.input-row {
+  display: flex;
+  gap: 10px;
+}
+
+.input-row input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #0f3460;
+  background: #22223b;
+  color: #eee;
+  font-size: 15px;
+}
+
+.input-row button {
+  padding: 10px 22px;
+  border-radius: 8px;
+  border: none;
+  background: #e94560;
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.input-row button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
