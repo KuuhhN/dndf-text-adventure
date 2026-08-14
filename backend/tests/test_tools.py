@@ -664,3 +664,24 @@ def test_expertise_ignored_for_non_rogue():
                          expertise_skills=["Athletics", "Perception"])
     assert c["expertise_skills"] == [], "非游荡者不应有专精"
     assert c["skills"]["Athletics"] == c["modifiers"]["STR"] + 2, "不应翻倍"
+
+
+def test_ability_check_with_dc_engine_judges():
+    """检定传 dc：引擎判定成败（total >= dc），LLM 无权编造结果。"""
+    from unittest.mock import patch
+    from app.tools import ability_check
+    from app.character import create_character
+
+    c = create_character("DC", "Human", "Rogue", chosen_skills=["Stealth", "Perception"])
+    mod = c["skills"]["Perception"]
+
+    with patch("app.tools.roll", return_value={"rolls": [10], "total": 10, "crit": False, "fumble": False}):
+        ok = ability_check(c, "Perception", dc=10)
+        assert ok["success"] is True, f"10+{mod} >= 10 应成功"
+        assert ok["dc"] == 10
+        hard = ability_check(c, "Perception", dc=20)
+        assert hard["success"] is False, f"10+{mod} < 20 应失败"
+
+    with patch("app.tools.roll", return_value={"rolls": [1], "total": 1, "crit": False, "fumble": True}):
+        no_dc = ability_check(c, "Perception")
+        assert no_dc["success"] is None, "不传 dc 时不判定（兼容旧行为）"

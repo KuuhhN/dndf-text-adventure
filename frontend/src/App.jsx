@@ -866,10 +866,10 @@ function GameView({ character, messages, input, busy, setInput, send, sendText, 
           ))}
         </div>
         <div className="skills">
-          <h3>🎯 技能 <small>（点击即用，DM 判定）</small></h3>
+          <h3>🎯 技能 <small>（冒险中自动触发检定，可主动提出）</small></h3>
           {Object.entries(c.skills).map(([sk, val]) => (
             <button key={sk} className="skill" disabled={busy} title={SKILL_HINTS[sk] || ""}
-              onClick={() => sendText(`我要用【${t(sk)}】技能：${SKILL_HINTS[sk] || ""}`)}>
+              onClick={() => sendText(`我想过个【${t(sk)}】检定（${SKILL_HINTS[sk] || ""}），看看能发现什么`)}>
               <span className={c.proficient_skills?.includes(sk) ? "prof" : ""}>{t(sk)}{c.proficient_skills?.includes(sk) ? "✓" : ""}</span>
               <small className="skill-hint">{SKILL_HINTS[sk] || ""}</small>
               <span className={val >= 0 ? "pos" : "neg"}>{val >= 0 ? "+" : ""}{val}</span>

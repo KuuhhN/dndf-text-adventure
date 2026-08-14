@@ -35,8 +35,8 @@ def _modifier(character: dict, ability: str) -> int:
     return character["modifiers"].get(ability, 0)
 
 
-def ability_check(character: dict, skill_or_ability: str) -> dict:
-    """属性/技能检定：D20 + 修正（+熟练）。返回完整结果供叙事引用。"""
+def ability_check(character: dict, skill_or_ability: str, dc: int | None = None) -> dict:
+    """属性/技能检定：D20 + 修正（+熟练）。传 dc 时引擎判定成败（两阶段协议：LLM 只定难度不判结果）。"""
     skills = character.get("skills", {})
     if skill_or_ability in skills:
         mod = skills[skill_or_ability]
@@ -56,7 +56,8 @@ def ability_check(character: dict, skill_or_ability: str) -> dict:
         "total": r["total"] + mod,
         "crit": r.get("crit", False),
         "fumble": r.get("fumble", False),
-        "success": None,  # 由 LLM 依 DC 判断
+        "dc": dc,
+        "success": (r["total"] + mod) >= dc if dc is not None else None,  # 引擎判定成败
     }
     # 幸运（半身人）：大失败自动重掷一次（1次/长休）
     if result["fumble"] and _has_passive(character, "lucky"):
@@ -537,13 +538,17 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "ability_check",
-            "description": "属性/技能检定。玩家尝试攀爬、潜行、说服、察觉等需要判定成败的行动时使用。返回 D20 结果。",
+            "description": "属性/技能检定。玩家尝试攀爬、潜行、说服、察觉、解读历史文献/魔法符文/宗教圣物等需要判定成败的行动时使用；角色接触专业信息时应自动发起检定。返回 D20 结果与成败（传 dc 时引擎判定）。",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "skill_or_ability": {
                         "type": "string",
-                        "description": "技能名（如 Perception、Stealth、Athletics）或属性名（STR/DEX/CON/INT/WIS/CHA）",
+                        "description": "技能名（如 Perception、Stealth、History、Arcana）或属性名（STR/DEX/CON/INT/WIS/CHA）",
+                    },
+                    "dc": {
+                        "type": "integer",
+                        "description": "难度等级：普通 10 / 困难 15 / 极难 20，由场景难度决定；传了则由引擎判定成功与否",
                     },
                 },
                 "required": ["skill_or_ability"],
@@ -680,7 +685,7 @@ def execute_tool(name: str, args: dict, character: dict | None = None) -> dict:
         if name == "roll_dice":
             return roll(args["dice"])
         if name == "ability_check":
-            return ability_check(character, args["skill_or_ability"])
+            return ability_check(character, args["skill_or_ability"], args.get("dc"))
         if name == "attack":
             return attack(character, args["target"], args.get("weapon_dice", "1d8"))
         if name == "encounter":
