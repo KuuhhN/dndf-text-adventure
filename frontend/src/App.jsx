@@ -87,12 +87,14 @@ const ZH = {
   "Maces": "钉头锤", "Quarterstaffs": "长棍", "Rapiers": "细剑",
   "Shortswords": "短剑", "Sickles": "镰刀", "Slings": "投石索", "Spears": "长矛",
   "Longswords": "长剑", "Hand crossbows": "手弩", "Crossbows, light": "轻弩",
-  "Thieves' Tools": "盗贼工具", "Saving Throw: STR": "豁免：力量",
+  "Thieves' Tools": "盗贼工具", "Calligrapher's Supplies": "书法工具", "Saving Throw: STR": "豁免：力量",
   "Saving Throw: DEX": "豁免：敏捷", "Saving Throw: CON": "豁免：体质",
   "Saving Throw: INT": "豁免：智力", "Saving Throw: WIS": "豁免：感知",
   "Saving Throw: CHA": "豁免：魅力",
 };
 const t = (k) => ZH[k] || k; // 未知名称回退英文
+// 熟练项显示：Skill:/Tool: 前缀转中文（工具名有 ZH 映射则翻译）
+const zhProf = (p) => (p.startsWith("Tool: ") ? `工具：${t(p.replace("Tool: ", ""))}` : t(p.replace("Skill: ", "")));
 
 // 主动能力展示（与后端 tools.FEATURE_ACTIONS 白名单对应）
 const FEATURES_UI = {
@@ -507,12 +509,13 @@ function CreateWizard({ races, classes, onSubmit }) {
                   // 背景赠送专长与已选专长重复时自动取消选择
                   if (form.feat === b.feat) set("feat", "");
                   // 换背景后原自选技能可能已被背景覆盖为熟练，清空重选
+                  set("chosen_skills", []);
                   set("skilled_skills", []);
                   set("expertise_skills", []);
                 }}>
                   <b>{t(b.name)}</b>
                   <span>赠送专长：{t(b.feat)}</span>
-                  <span>技能：{b.proficiencies.map((p) => t(p.replace("Skill: ", ""))).join("、")}</span>
+                  <span>技能：{b.proficiencies.map(zhProf).join("、")}</span>
                 </button>
               ))}
             </div>
@@ -536,10 +539,10 @@ function CreateWizard({ races, classes, onSubmit }) {
             </div>
             <div className="skill-pick-opts">
               {(classDetail?.skill_choices?.options ?? []).map((s) => (
-                <label key={s} className={`chip ${form.chosen_skills.includes(s) ? "on" : ""} ${form.skilled_skills.includes(s) ? "taken" : ""}`}>
+                <label key={s} className={`chip ${form.chosen_skills.includes(s) ? "on" : ""} ${form.skilled_skills.includes(s) || bgSkills.includes(s) ? "taken" : ""}`}>
                   <input
                     type="checkbox"
-                    disabled={form.skilled_skills.includes(s)}
+                    disabled={form.skilled_skills.includes(s) || bgSkills.includes(s)}
                     checked={form.chosen_skills.includes(s)}
                     onChange={() => {
                       const picked = form.chosen_skills.includes(s)
