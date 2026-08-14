@@ -647,6 +647,18 @@ function CreateWizard({ races, classes, onSubmit }) {
         ) : (
           <button className="primary" disabled={!canNext} onClick={() => onSubmit(form)}>开始冒险</button>
         )}
+        {!canNext && step === 5 && (
+          <p className="step-hint">
+            {(() => {
+              const choose = classDetail?.skill_choices?.choose ?? 0;
+              if (form.chosen_skills.length !== choose) return `还需选 ${choose - form.chosen_skills.length} 个职业技能`;
+              if (hasSkilled && form.skilled_skills.length !== 3) return `技能熟练专长还需选 ${3 - form.skilled_skills.length} 个技能`;
+              if (hasExpertise && form.expertise_skills.length !== 2) return `专精还需选 ${2 - form.expertise_skills.length} 个技能`;
+              return "";
+            })()}
+          </p>
+        )}
+        {!canNext && step === 4 && <p className="step-hint">请先选择一个背景</p>}
       </div>
     </div>
   );

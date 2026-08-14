@@ -110,6 +110,16 @@ body {
   margin-top: 16px;
 }
 
+.step-hint {
+  width: 100%;
+  text-align: center;
+  margin: 10px 0 0;
+  color: #a03020;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: "KaiTi", "STKaiti", serif;
+}
+
 .ghost-btn {
   padding: 10px 20px;
   border-radius: 8px;
