@@ -63,7 +63,7 @@ async def _stream_once(
                 body = (await resp.aread()).decode("utf-8", "replace")
                 if resp.status_code in (429, 402):
                     raise LLMStreamError("AI 服务额度受限（429/402），请稍后重试或换模型（LLM_MODEL=kimi-k3）")
-                raise RuntimeError(f"LLM {resp.status_code}: {body[:300]}")
+                raise LLMStreamError(f"AI 服务请求失败（HTTP {resp.status_code}），请稍后重试")
             # 流式 tool_calls 增量聚合
             tool_calls: dict[int, dict] = {}
             try:
@@ -92,7 +92,7 @@ async def _stream_once(
                         if fn.get("arguments"):
                             slot["arguments"] += fn["arguments"]
             except (httpx.RemoteProtocolError, httpx.ReadError, httpx.StreamError, httpx.ConnectError) as e:
-                raise LLMStreamError("AI 连接中断（网络波动或临时限额），已保存你的行动，直接再发一次即可") from e
+                raise LLMStreamError("AI 连接中断（网络波动或临时限额），请稍后重试并重新发送你的行动") from e
             for idx in sorted(tool_calls):
                 slot = tool_calls[idx]
                 yield {"type": "tool_call", "call": {
@@ -135,4 +135,4 @@ async def stream_chat(
             last_err = e
             if attempt < RETRY:
                 continue  # 连接前失败：重试
-    raise RuntimeError(f"LLM 连接失败（已重试 {RETRY} 次）: {last_err}")
+    raise LLMStreamError(f"AI 服务连接失败（已重试 {RETRY} 次），请稍后重试")

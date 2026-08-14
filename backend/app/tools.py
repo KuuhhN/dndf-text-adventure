@@ -152,7 +152,7 @@ def encounter(character: dict, monsters: list[str]) -> dict:
         combat["enemies"].append({"name": name, "max_hp": hp, "hp": hp, "ac": _monster_ac(monster)})
         added.append({"name": name, "hp": hp, "ac": _monster_ac(monster)})
     result = {"type": "encounter", "enemies": added}
-    # 警觉：先攻 +5（玩家 D20+DEX vs 敌人 D20+怪物 DEX，决定叙事先手）
+    # 警觉：先攻 +5（玩家 D20+DEX vs 敌人 D20，决定叙事先手；敌人先攻简化不加修正）
     init_bonus = 5 if _has_passive(character, "alert") else 0
     p_init = roll("1d20")["total"] + _modifier(character, "DEX") + init_bonus
     e_init = roll("1d20")["total"]
@@ -252,7 +252,7 @@ def enemy_attack(character: dict, attacker: str) -> dict:
         damage = roll("1d6")["total"] + 1
         if _has_any_passive(character, "dwarven-resilience", "damage-resistance",
                             "hellish-resistance", "draconic-ancestry"):
-            damage = max(1, damage // 2)  # 抗性：伤害减半（至少 1）
+            damage = max(1, damage // 2)  # 抗性：伤害减半（至少 1）；简化：enemy_attack 无伤害类型概念，对任意伤害生效
             result["resisted"] = True
         character["current_hp"] = max(0, character["current_hp"] - damage)
         # 不屈坚韧（半兽人）：濒死时回到 1 HP（1次/长休）
