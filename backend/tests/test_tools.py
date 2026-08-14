@@ -427,3 +427,133 @@ def test_execute_tool_malformed_args_returns_error():
     assert "error" in r2
     r3 = execute_tool("attack", {"target": 7}, None)
     assert "error" in r3
+
+
+def test_feat_dedup_with_background():
+    """背景赠送专长与自选专长重复时自动去重（回归：罪犯背景送警觉，不能再选警觉）。"""
+    from app.character import create_character
+
+    c = create_character("C", "Human", "Fighter", background="Criminal", feat="Alert",
+                          chosen_skills=["Athletics", "Perception"])
+    assert c["feats"].count("Alert") == 1, f"Alert 不应重复: {c['feats']}"
+
+
+def _mk(race, cls, **kw):
+    """固定属性创建角色（避免 standard 随机属性导致断言不稳）。"""
+    from app.character import create_character
+    return create_character("T", race, cls, method="point-buy",
+                            abilities={"STR": 15, "DEX": 14, "CON": 13, "INT": 10, "WIS": 10, "CHA": 8}, **kw)
+
+
+def test_skilled_feat_adds_3_proficiencies():
+    """技能熟练专长：额外 3 个未熟练技能获得熟练。"""
+    base = _mk("Human", "Fighter", chosen_skills=["Athletics", "Perception"])
+    skilled = _mk("Human", "Fighter", feat="Skilled", chosen_skills=["Athletics", "Perception"])
+    gained = set(skilled["proficient_skills"]) - set(base["proficient_skills"])
+    assert len(gained) == 3, f"应新增 3 个熟练技能: {gained}"
+    # 新熟练的技能修正 = 属性修正 + 2
+    for s in gained:
+        assert skilled["skills"][s] == base["skills"][s] + 2, f"{s}: {skilled['skills'][s]} vs {base['skills'][s]}+2"
+
+
+def test_passives_initialized():
+    """被动能力按种族/专长初始化：龙裔火抗+吐息主动；半身人幸运；盗贼无专长被动。"""
+    from app.character import create_character
+
+    dragon = create_character("D", "Dragonborn", "Fighter", chosen_skills=["Athletics"])
+    assert "draconic-ancestry" in dragon["passives"] or "damage-resistance" in dragon["passives"]
+    halfling = create_character("H", "Halfling", "Rogue", chosen_skills=["Stealth"])
+    assert "lucky" in halfling["passives"]
+    alert = create_character("A", "Human", "Fighter", feat="Alert", chosen_skills=["Athletics"])
+    assert "alert" in alert["passives"]
+
+
+def test_savage_attacker_damage_reroll():
+    """野蛮攻击者：命中时伤害骰掷两次取高（多次攻击验证 damage 取高逻辑）。"""
+    from app.character import create_character
+    from app.tools import attack, encounter
+
+    c = _mk("Human", "Fighter", feat="Savage Attacker", chosen_skills=["Athletics"])
+    encounter(c, ["Goblin"])
+    hit_dmg = []
+    for _ in range(30):
+        r = attack(c, "Goblin", weapon_dice="1d4")  # 1d4 便于验证取高
+        if r["hit"] and r.get("savage_attacker"):
+            hit_dmg.append((r["damage_rolls"], r["damage"]))
+        if not c["combat"]["enemies"]:
+            encounter(c, ["Goblin"])
+        if len(hit_dmg) >= 5:
+            break
+    assert len(hit_dmg) >= 5, "应有多次野蛮攻击命中"
+    str_mod = c["modifiers"]["STR"]
+    for rolls, dmg in hit_dmg:
+        assert len(rolls) == 2, f"伤害骰应掷两次: {rolls}"
+        assert dmg == max(rolls) + str_mod, f"伤害应取高+力量修正: {rolls} + {str_mod} -> {dmg}"
+
+
+def test_alert_initiative_bonus():
+    """警觉专长：encounter 返回先攻 +5。"""
+    from app.character import create_character
+    from app.tools import encounter
+
+    c = create_character("AL", "Human", "Fighter", feat="Alert", chosen_skills=["Athletics"])
+    r = encounter(c, ["Goblin"])
+    assert r["initiative"]["alert_bonus"] == 5
+    plain = create_character("PL", "Human", "Fighter", chosen_skills=["Athletics"])
+    r2 = encounter(plain, ["Goblin"])
+    assert r2["initiative"]["alert_bonus"] == 0
+
+
+def test_lucky_rerolls_fumble():
+    """幸运：检定大失败自动重掷一次，次数扣减。"""
+    import random
+    from unittest.mock import patch
+    from app.character import create_character
+    from app.tools import ability_check
+
+    c = create_character("LK", "Halfling", "Rogue", chosen_skills=["Stealth"])
+    assert "lucky" in c["passives"]
+    # 强制第一次掷 1（大失败），第二次掷 10
+    with patch("app.tools.roll") as mock_roll:
+        mock_roll.side_effect = [{"type": "roll", "expression": "1d20", "rolls": [1], "total": 1, "crit": False, "fumble": True},
+                                 {"type": "roll", "expression": "1d20", "rolls": [10], "total": 10, "crit": False, "fumble": False}]
+        r = ability_check(c, "Stealth")
+    assert r.get("lucky_reroll") is True
+    assert r["d20_original"] == 1 and r["d20"] == 10
+    assert c["combat"]["lucky_uses"]["remaining"] == 0
+
+
+def test_relentless_endurance_saves_from_death():
+    """不屈坚韧：濒死时回到 1 HP（1次/长休）。"""
+    from unittest.mock import patch
+    from app.character import create_character
+    from app.tools import enemy_attack, encounter
+
+    c = create_character("RE", "Half-Orc", "Barbarian", chosen_skills=["Athletics"])
+    encounter(c, ["Goblin"])
+    c["current_hp"] = 1
+    c["ac"] = 0  # 保证被命中
+    with patch("app.tools.roll") as mock_roll:
+        mock_roll.side_effect = [{"type": "roll", "expression": "1d20", "rolls": [20], "total": 20},
+                                 {"type": "roll", "expression": "1d6", "rolls": [6], "total": 6}]
+        r = enemy_attack(c, "Goblin")
+    assert r.get("relentless_endurance") is True
+    assert c["current_hp"] == 1, "不屈坚韧应回 1 HP"
+    assert c["combat"]["relentless_uses"]["remaining"] == 0
+
+
+def test_resistance_halves_damage():
+    """抗性被动：敌人伤害减半。"""
+    from unittest.mock import patch
+    from app.character import create_character
+    from app.tools import enemy_attack, encounter
+
+    c = create_character("RS", "Dragonborn", "Fighter", chosen_skills=["Athletics"])
+    encounter(c, ["Goblin"])
+    c["ac"] = 0
+    with patch("app.tools.roll") as mock_roll:
+        mock_roll.side_effect = [{"type": "roll", "expression": "1d20", "rolls": [20], "total": 20, "crit": True, "fumble": False},
+                                 {"type": "roll", "expression": "1d6", "rolls": [5], "total": 5}]
+        r = enemy_attack(c, "Goblin")
+    assert r.get("resisted") is True
+    assert r["damage"] == 3, f"6 伤害减半应 3，实际 {r['damage']}"

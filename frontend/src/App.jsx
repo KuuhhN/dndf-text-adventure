@@ -104,6 +104,20 @@ const FEATURES_UI = {
   "cunning-action": { zh: "狡诈行动", action: "附赠动作", rest: "每回合", hint: "（疾走/脱离/巧手）" },
 };
 
+// 被动能力展示（与后端 tools.PASSIVES 对应——展示的能力全部引擎生效）
+const PASSIVES_UI = {
+  "savage-attacker": { zh: "野蛮攻击者", desc: "武器伤害骰掷两次取高（自动）", src: "专长" },
+  alert: { zh: "警觉", desc: "先攻 +5，战斗开局更快（自动）", src: "专长" },
+  skilled: { zh: "技能熟练", desc: "额外 3 个技能熟练（已生效）", src: "专长" },
+  darkvision: { zh: "黑暗视觉", desc: "黑暗中视物如常（自动）", src: "种族" },
+  lucky: { zh: "幸运", desc: "检定大失败自动重掷（1次/长休）", src: "种族" },
+  "relentless-endurance": { zh: "不屈坚韧", desc: "濒死时回到 1 点生命（1次/长休）", src: "种族" },
+  "dwarven-resilience": { zh: "矮人韧性", desc: "中毒伤害减半（自动）", src: "种族" },
+  "damage-resistance": { zh: "伤害抗性", desc: "对应元素伤害减半（自动）", src: "种族" },
+  "hellish-resistance": { zh: "地狱抗性", desc: "火焰伤害减半（自动）", src: "种族" },
+  "draconic-ancestry": { zh: "龙族血统", desc: "对应龙类元素伤害减半（自动）", src: "种族" },
+};
+
 // 技能一句话用途（游戏内技能面板）
 const SKILL_HINTS = {
   Acrobatics: "翻越障碍、保持平衡、挣脱束缚",
@@ -371,9 +385,8 @@ function CreateWizard({ races, classes, onSubmit }) {
                 <>
                   <h3>{t(raceDetail.name)}</h3>
                   <div className="detail-meta">
-                    体型 {t(raceDetail.size)} · 速度 {raceDetail.speed}ft
                     {raceDetail.ability_bonuses.length > 0 && (
-                      <> · 加成 {raceDetail.ability_bonuses.map((b) => `${t(b.ability)}+${b.bonus}`).join(" ")}</>
+                      <>加成 {raceDetail.ability_bonuses.map((b) => `${t(b.ability)}+${b.bonus}`).join(" ")}</>
                     )}
                   </div>
                   <ul className="detail-traits">
@@ -498,7 +511,11 @@ function CreateWizard({ races, classes, onSubmit }) {
             <h3>背景（提供技能熟练 + 专长）</h3>
             <div className="bg-list">
               {backgrounds.map((b) => (
-                <button key={b.index} className={`bg-card ${form.background === b.name ? "on" : ""}`} onClick={() => set("background", b.name)}>
+                <button key={b.index} className={`bg-card ${form.background === b.name ? "on" : ""}`} onClick={() => {
+                  set("background", b.name);
+                  // 背景赠送专长与已选专长重复时自动取消选择
+                  if (form.feat === b.feat) set("feat", "");
+                }}>
                   <b>{t(b.name)}</b>
                   <span>赠送专长：{t(b.feat)}</span>
                   <span>技能：{b.proficiencies.map((p) => t(p.replace("Skill: ", ""))).join("、")}</span>
@@ -507,12 +524,15 @@ function CreateWizard({ races, classes, onSubmit }) {
             </div>
             <h3>1 级专长（可选）</h3>
             <div className="bg-list">
-              {feats.map((f) => (
-                <button key={f.index} className={`bg-card ${form.feat === f.name ? "on" : ""}`} onClick={() => set("feat", form.feat === f.name ? "" : f.name)}>
-                  <b>{t(f.name)}</b>
-                  <span className="feat-sum">{f.summary || (f.desc ? f.desc.slice(0, 60) + "…" : "")}</span>
-                </button>
-              ))}
+              {(() => {
+                const bgFeat = backgrounds.find((b) => b.name === form.background)?.feat;
+                return feats.filter((f) => f.name !== bgFeat).map((f) => (
+                  <button key={f.index} className={`bg-card ${form.feat === f.name ? "on" : ""}`} onClick={() => set("feat", form.feat === f.name ? "" : f.name)}>
+                    <b>{t(f.name)}</b>
+                    <span className="feat-sum">{f.summary || (f.desc ? f.desc.slice(0, 60) + "…" : "")}</span>
+                  </button>
+                ));
+              })()}
             </div>
           </div>
         )}
@@ -607,8 +627,23 @@ function GameView({ character, messages, input, busy, setInput, send, sendText, 
           </div>
           <div className="bars">
             <div className="bar">❤️ HP {c.current_hp}/{c.max_hp} · Lv.{c.level} · XP {c.xp}</div>
-            <div className="bar">🛡️ AC {c.ac} · ⚡ {c.speed}ft · 熟练 +{c.proficiency_bonus}</div>
+            <div className="bar">🛡️ AC {c.ac} · 熟练 +{c.proficiency_bonus}</div>
           </div>
+          {c.passives?.length > 0 && (
+            <div className="passive-bar">
+              <h3>🛡️ 被动能力 <small>（自动生效）</small></h3>
+              {c.passives.map((p) => {
+                const spec = PASSIVES_UI[p];
+                if (!spec) return null;
+                return (
+                  <div key={p} className="passive-item" title={`来源：${spec.src}`}>
+                    <b>{spec.zh}</b>
+                    <small>{spec.desc}</small>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {c.combat?.feature_uses && Object.keys(c.combat.feature_uses).length > 0 && (
             <div className="ability-bar">
               <h3>⚡ 可用能力 <small>（用了即消耗）</small></h3>

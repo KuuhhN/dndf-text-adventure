@@ -147,6 +147,7 @@ def create_character(
 
     # 背景（2024 SRD）：技能熟练 + 赠送专长
     feats: list[str] = []
+    bg_feat = ""
     if background:
         bg = db.get_item("backgrounds", background)
         if not bg:
@@ -161,21 +162,32 @@ def create_character(
 
     # 1 级专长（2024 SRD：origin/general，无 minimum_level > 1 前置）
     if feat:
-        f = db.get_item("feats", feat)
-        if not f:
-            raise ValueError(f"未知专长: {feat}")
-        prereq = f.get("prerequisites") or {}
-        min_lv = prereq.get("minimum_level", 1) if isinstance(prereq, dict) else 1
-        if min_lv > 1:
-            raise ValueError(f"专长「{feat}」需要 {min_lv} 级才能选择")
-        if f.get("type") not in ("origin", "general"):
-            raise ValueError(f"专长「{feat}」不是 1 级可选类型（{f.get('type')}）")
-        feats.append(feat)
+        if feat == bg_feat:
+            feat = ""  # 背景已赠送同专长，不重复（防御：前端已过滤）
+        else:
+            f = db.get_item("feats", feat)
+            if not f:
+                raise ValueError(f"未知专长: {feat}")
+            prereq = f.get("prerequisites") or {}
+            min_lv = prereq.get("minimum_level", 1) if isinstance(prereq, dict) else 1
+            if min_lv > 1:
+                raise ValueError(f"专长「{feat}」需要 {min_lv} 级才能选择")
+            if f.get("type") not in ("origin", "general"):
+                raise ValueError(f"专长「{feat}」不是 1 级可选类型（{f.get('type')}）")
+            feats.append(feat)
 
     skills = {
         skill: ability_modifier(abilities[SKILL_ABILITIES[skill]]) + (prof_bonus if skill in proficient else 0)
         for skill in SKILL_ABILITIES
     }
+
+    # 技能熟练专长（Skilled）：额外 3 个未熟练技能（取修正最高的 3 个）
+    if "Skilled" in feats:
+        candidates = [s for s in SKILL_ABILITIES if s not in proficient]
+        candidates.sort(key=lambda s: ability_modifier(abilities[SKILL_ABILITIES[s]]), reverse=True)
+        for s in candidates[:3]:
+            proficient.add(s)
+            skills[s] += prof_bonus
 
     character = {
         "name": name,
@@ -200,9 +212,11 @@ def create_character(
         "xp": 0,
         "combat": {"enemies": [], "feature_uses": {}, "rage": False},
         "quests": [],
+        "passives": [],
     }
-    from .tools import init_feature_uses  # 循环导入防护：tools 也 import character
+    from .tools import init_feature_uses, init_passives  # 循环导入防护：tools 也 import character
     init_feature_uses(character)
+    init_passives(character)
     return character
 
 

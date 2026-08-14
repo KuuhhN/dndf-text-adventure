@@ -48,7 +48,7 @@ def ability_check(character: dict, skill_or_ability: str) -> dict:
         mod = _modifier(character, ability)
         label = f"属性检定: {ability}"
     r = roll("1d20")
-    return {
+    result = {
         "type": "ability_check",
         "label": label,
         "d20": r["rolls"][0],
@@ -58,6 +58,23 @@ def ability_check(character: dict, skill_or_ability: str) -> dict:
         "fumble": r.get("fumble", False),
         "success": None,  # 由 LLM 依 DC 判断
     }
+    # 幸运（半身人）：大失败自动重掷一次（1次/长休）
+    if result["fumble"] and _has_passive(character, "lucky"):
+        combat = _combat(character)
+        lucky_uses = combat.setdefault("lucky_uses", {"remaining": 1, "total": 1})
+        if lucky_uses["remaining"] > 0:
+            lucky_uses["remaining"] -= 1
+            r2 = roll("1d20")
+            result.update({
+                "lucky_reroll": True,
+                "d20_original": result["d20"],
+                "d20": r2["rolls"][0],
+                "total": r2["total"] + mod,
+                "crit": r2.get("crit", False),
+                "fumble": r2.get("fumble", False),
+                "lucky_remaining": lucky_uses["remaining"],
+            })
+    return result
 
 
 def _monster_ac(monster: dict) -> int:
@@ -123,7 +140,7 @@ def post_quest(
 
 
 def encounter(character: dict, monsters: list[str]) -> dict:
-    """把怪物拉入战斗。返回每个怪物的 HP/AC。新战斗开始，狂暴状态重置。"""
+    """把怪物拉入战斗。返回每个怪物的 HP/AC。新战斗开始，狂暴状态重置；警觉专长提供先攻加值。"""
     combat = _combat(character)
     combat["rage"] = False
     added = []
@@ -134,7 +151,19 @@ def encounter(character: dict, monsters: list[str]) -> dict:
         hp = monster.get("hit_points", 1)
         combat["enemies"].append({"name": name, "max_hp": hp, "hp": hp, "ac": _monster_ac(monster)})
         added.append({"name": name, "hp": hp, "ac": _monster_ac(monster)})
-    return {"type": "encounter", "enemies": added}
+    result = {"type": "encounter", "enemies": added}
+    # 警觉：先攻 +5（玩家 D20+DEX vs 敌人 D20+怪物 DEX，决定叙事先手）
+    init_bonus = 5 if _has_passive(character, "alert") else 0
+    p_init = roll("1d20")["total"] + _modifier(character, "DEX") + init_bonus
+    e_init = roll("1d20")["total"]
+    result["initiative"] = {
+        "player": p_init, "enemy": e_init,
+        "player_first": p_init >= e_init,
+        "alert_bonus": init_bonus,
+    }
+    if init_bonus:
+        result["initiative"]["note"] = "警觉专长：先攻 +5"
+    return result
 
 
 def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
@@ -173,8 +202,15 @@ def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
             n, d, mod = int(m.group(1) or 1), int(m.group(2)), int(m.group(3) or 0)
             dmg = roll(f"{n * 2}d{d}{mod:+d}")
             result["crit_damage"] = True
-        result["damage_rolls"] = dmg["rolls"]
-        result["damage"] = dmg["total"] + _modifier(character, "STR")
+        if _has_passive(character, "savage-attacker") and not result.get("crit_damage"):
+            # 野蛮攻击者：伤害骰掷两次取高
+            dmg2 = roll(weapon_dice)
+            result["savage_attacker"] = True
+            result["damage_rolls"] = [dmg["rolls"][0], dmg2["rolls"][0]]
+            result["damage"] = max(dmg["total"], dmg2["total"]) + _modifier(character, "STR")
+        else:
+            result["damage_rolls"] = dmg["rolls"]
+            result["damage"] = dmg["total"] + _modifier(character, "STR")
         if _combat(character).get("rage"):
             result["damage"] += 2  # 狂暴：近战伤害 +2
             result["rage_bonus"] = True
@@ -197,23 +233,41 @@ def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
 
 
 def enemy_attack(character: dict, attacker: str) -> dict:
-    """敌人攻击玩家（简化）：D20 vs 玩家 AC，命中 1d6+1 伤害，扣玩家 HP。"""
+    """敌人攻击玩家（简化）：D20 vs 玩家 AC，命中 1d6+1 伤害，扣玩家 HP。
+
+    被动生效：伤害抗性/矮人韧性减半；不屈坚韧在濒死时回到 1 HP（1次/长休）。
+    """
     d20 = roll("1d20")
     hit = d20["total"] >= character["ac"]
     damage = 0
-    if hit:
-        damage = roll("1d6")["total"] + 1
-        character["current_hp"] = max(0, character["current_hp"] - damage)
-    return {
+    result = {
         "type": "enemy_attack",
         "attacker": attacker,
         "attack_roll": d20["rolls"][0],
         "target_ac": character["ac"],
         "hit": hit,
-        "damage": damage,
-        "player_hp": character["current_hp"],
-        "player_dead": character["current_hp"] <= 0,
+        "damage": 0,
     }
+    if hit:
+        damage = roll("1d6")["total"] + 1
+        if _has_any_passive(character, "dwarven-resilience", "damage-resistance",
+                            "hellish-resistance", "draconic-ancestry"):
+            damage = max(1, damage // 2)  # 抗性：伤害减半（至少 1）
+            result["resisted"] = True
+        character["current_hp"] = max(0, character["current_hp"] - damage)
+        # 不屈坚韧（半兽人）：濒死时回到 1 HP（1次/长休）
+        if character["current_hp"] <= 0 and _has_passive(character, "relentless-endurance"):
+            combat = _combat(character)
+            uses = combat.setdefault("relentless_uses", {"remaining": 1, "total": 1})
+            if uses["remaining"] > 0:
+                uses["remaining"] -= 1
+                character["current_hp"] = 1
+                result["relentless_endurance"] = True
+                result["relentless_remaining"] = uses["remaining"]
+    result["damage"] = damage
+    result["player_hp"] = character["current_hp"]
+    result["player_dead"] = character["current_hp"] <= 0
+    return result
 
 
 def lookup(kind: str, name: str) -> dict:
@@ -255,7 +309,72 @@ def lookup(kind: str, name: str) -> dict:
     }
 
 
-# 主动能力白名单：可由引擎结算的特性（LLM 不能编造效果，次数引擎管）
+# 被动能力注册表：展示的能力必须真的生效（数值化被动接入引擎，叙事型注入 prompt）
+# ponytail: 只接数值化被动；纯叙事被动（如黑暗视觉）由 prompt 注入 + 前端被动区块说明
+PASSIVES = {
+    # 专长
+    "savage-attacker": {"zh": "野蛮攻击者", "effect": "damage_reroll", "source": "专长",
+                        "desc": "武器伤害骰掷两次取高"},
+    "alert": {"zh": "警觉", "effect": "initiative", "bonus": 5, "source": "专长",
+              "desc": "先攻 +5，战斗开局反应更快"},
+    "skilled": {"zh": "技能熟练", "effect": "skills", "count": 3, "source": "专长",
+                "desc": "额外 3 个技能获得熟练"},
+    # 种族
+    "darkvision": {"zh": "黑暗视觉", "effect": "narrative", "source": "种族",
+                   "desc": "黑暗中视物如常（60 尺）"},
+    "lucky": {"zh": "幸运", "effect": "reroll_fumble", "uses": 1, "rest": "长休", "source": "种族",
+              "desc": "检定大失败时自动重掷（1次/长休）"},
+    "relentless-endurance": {"zh": "不屈坚韧", "effect": "death_save", "uses": 1, "rest": "长休", "source": "种族",
+                             "desc": "濒死时回到 1 点生命（1次/长休）"},
+    "dwarven-resilience": {"zh": "矮人韧性", "effect": "resist", "source": "种族",
+                           "desc": "中毒伤害减半"},
+    "damage-resistance": {"zh": "伤害抗性", "effect": "resist", "source": "种族",
+                          "desc": "对应元素伤害减半"},
+    "hellish-resistance": {"zh": "地狱抗性", "effect": "resist", "source": "种族",
+                           "desc": "火焰伤害减半"},
+    "draconic-ancestry": {"zh": "龙族血统", "effect": "resist", "source": "种族",
+                          "desc": "对应龙类元素伤害减半"},
+}
+
+# 种族 traits -> 被动能力映射（traits 的 index 含后缀变体，用前缀匹配）
+_RACE_PASSIVE_PREFIXES = {
+    "darkvision": "darkvision",
+    "lucky": "lucky",
+    "relentless-endurance": "relentless-endurance",
+    "dwarven-resilience": "dwarven-resilience",
+    "damage-resistance": "damage-resistance",
+    "hellish-resistance": "hellish-resistance",
+    "draconic-ancestry": "draconic-ancestry",
+}
+
+
+def init_passives(character: dict) -> list[str]:
+    """按种族 traits + 专长初始化被动能力，写入 character['passives']。"""
+    passives = set(character.get("passives", []))
+    race = db.get_race(character.get("race", ""))
+    if race:
+        for t in race.get("traits", []):
+            idx = t.get("index", "").lower()
+            for prefix, passive in _RACE_PASSIVE_PREFIXES.items():
+                if idx.startswith(prefix):
+                    passives.add(passive)
+    for feat_name in character.get("feats", []):
+        idx = feat_name.lower().replace(" ", "-")
+        if idx in PASSIVES:
+            passives.add(idx)
+    character["passives"] = sorted(passives)
+    return character["passives"]
+
+
+def _has_passive(character: dict, passive: str) -> bool:
+    return passive in character.get("passives", [])
+
+
+def _has_any_passive(character: dict, *passives: str) -> bool:
+    return any(p in character.get("passives", []) for p in passives)
+
+
+
 # ponytail: 只覆盖 1-2 级高价值主动能力；其余特性在技能面板标注"被动/由 DM 判定"。
 # 作用：技能栏显示剩余次数，用了即消耗（短休/长休恢复由 DM 叙事中引导）。
 FEATURE_ACTIONS = {

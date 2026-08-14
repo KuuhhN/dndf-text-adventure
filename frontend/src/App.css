@@ -760,6 +760,56 @@ button.primary:disabled {
   filter: grayscale(0.6);
 }
 
+/* 被动能力区块 */
+.passive-bar {
+  background: #f5ecd7;
+  border: 1px solid #c9a86a;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 8px;
+}
+
+.passive-bar h3 {
+  font-size: 13px;
+  color: #7a5c33;
+  font-family: "KaiTi", "STKaiti", serif;
+  margin-bottom: 6px;
+}
+
+.passive-bar h3 small {
+  font-size: 11px;
+  color: #9a8458;
+  font-family: inherit;
+}
+
+.passive-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  background: #f2e4c0;
+  border-radius: 6px;
+  border-left: 3px solid #a8842f;
+  font-size: 12.5px;
+  color: #4a3a1e;
+}
+
+.passive-item:last-child {
+  margin-bottom: 0;
+}
+
+.passive-item b {
+  color: #7a5220;
+  font-family: "KaiTi", "STKaiti", serif;
+  font-size: 13px;
+}
+
+.passive-item small {
+  color: #8a6a3a;
+  font-size: 11px;
+}
+
 .enemies h3 {
   font-size: 14px;
   margin: 10px 0 6px;

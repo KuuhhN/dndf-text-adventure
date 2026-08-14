@@ -8,7 +8,7 @@ import json
 from typing import AsyncIterator
 
 from . import game, tools
-from .llm import stream_chat
+from .llm import LLMStreamError, stream_chat
 
 MAX_TOOL_ROUNDS = 4
 
@@ -16,10 +16,7 @@ MAX_TOOL_ROUNDS = 4
 ATTACK_INTENT = ("攻击", "挥剑", "砍", "刺", "劈", "斩", "杀", "打", "射", "放箭", "冲锋")
 
 
-def build_system_prompt(character: dict) -> str:
-    return f"""你是《龙与地下城 5e》文字冒险游戏的地下城主（DM）。你负责叙事，玩家负责行动。
-
-## 世界观
+_BASE_PROMPT = """你是《龙与地下城 5e》文字冒险游戏的地下城主（DM）。你负责叙事，玩家负责行动。
 剑与魔法的大陆「艾瑟兰」，冒险者公会、悬赏告示、幽暗地牢与龙语传说交织。
 开篇场景：醉龙酒馆——冒险者们聚集的起点。随着剧情推进，场景自由展开。
 
@@ -51,8 +48,29 @@ def build_system_prompt(character: dict) -> str:
 - 玩家 HP 归零时（player_dead=true）必须立即宣布玩家倒下，故事进入败局收尾。
 
 ## 当前角色卡
-{json.dumps(character, ensure_ascii=False)}
+{character}
 """
+
+# 被动能力说明（注入 prompt：LLM 叙事中体现被动，数值效果由引擎结算）
+_PASSIVE_NOTES = {
+    "darkvision": "你有黑暗视觉：黑暗/昏暗环境中能正常视物，叙事中别误判玩家看不清。",
+    "alert": "你有警觉专长：先攻 +5，战斗开局通常先手；叙事中敌人无法轻易偷袭你。",
+    "savage-attacker": "你有野蛮攻击者：武器伤害骰掷两次取高（引擎已结算，叙事照实描述）。",
+    "lucky": "你有幸运：检定大失败自动重掷（引擎已结算）。",
+    "relentless-endurance": "你有不屈坚韧：濒死时自动回到 1 点生命（引擎已结算，叙事照实描述）。",
+    "dwarven-resilience": "你有矮人韧性/抗性：对应伤害减半（引擎已结算）。",
+    "damage-resistance": "你有伤害抗性：对应元素伤害减半（引擎已结算）。",
+    "hellish-resistance": "你有地狱抗性：火焰伤害减半（引擎已结算）。",
+    "draconic-ancestry": "你有龙族血统抗性：对应龙类元素伤害减半（引擎已结算）。",
+}
+
+
+def build_system_prompt(character: dict) -> str:
+    base = _BASE_PROMPT.format(character=json.dumps(character, ensure_ascii=False))
+    passive_notes = [_PASSIVE_NOTES[p] for p in character.get("passives", []) if p in _PASSIVE_NOTES]
+    if passive_notes:
+        base += "\n\n## 你的被动能力（自动生效，叙事中必须体现）\n" + "\n".join(passive_notes)
+    return base
 
 
 async def game_chat(session_id: str, message: str) -> AsyncIterator[dict]:
@@ -77,57 +95,63 @@ async def game_chat(session_id: str, message: str) -> AsyncIterator[dict]:
 
     assistant_text = ""
     forced = False  # 后端强制攻击只触发一次
-    for _round in range(MAX_TOOL_ROUNDS):
-        calls = []
-        texts = []
-        async for event in stream_chat(messages, tools=tools.TOOLS, max_tokens=700):
-            if event["type"] == "delta":
-                texts.append(event["text"])
-            elif event["type"] == "tool_call":
-                calls.append(event["call"])
-        if calls:
-            # 工具调用：执行并注入结果
-            messages.append({
-                "role": "assistant",
-                "content": "".join(texts) or None,
-                "tool_calls": [
-                    {"id": c["id"], "type": "function",
-                     "function": {"name": c["name"], "arguments": c["arguments"]}}
-                    for c in calls
-                ],
-            })
-            for call in calls:
-                try:
-                    args = json.loads(call["arguments"] or "{}")
-                except json.JSONDecodeError:
-                    args = {}
-                result = tools.execute_tool(call["name"], args, character)
-                messages.append(tools.tool_result_message(call, result))
-                yield {"type": "tool", "call": {"name": call["name"], "arguments": call["arguments"]}, "result": result}
-            game.update_character(session_id, character)  # 工具副作用（战斗状态/经验）持久化
-            continue
-        # 无工具调用：检测"战斗攻击意图但 LLM 没调工具"（幻觉/退化），后端强制攻击一次
-        if not forced:
-            enemies = tools._combat(character)["enemies"]
-            if enemies and any(k in message for k in ATTACK_INTENT):
-                forced = True
-                target = enemies[0]["name"]
-                result = tools.attack(character, target)
-                game.update_character(session_id, character)
-                yield {"type": "tool", "call": {"name": "attack", "arguments": json.dumps({"target": target}, ensure_ascii=False)}, "result": result}
-                # 丢弃幻觉文本，注入引擎真实结果，要求重新叙事
+    try:
+        for _round in range(MAX_TOOL_ROUNDS):
+            calls = []
+            texts = []
+            async for event in stream_chat(messages, tools=tools.TOOLS, max_tokens=700):
+                if event["type"] == "delta":
+                    texts.append(event["text"])
+                elif event["type"] == "tool_call":
+                    calls.append(event["call"])
+            if calls:
+                # 工具调用：执行并注入结果
                 messages.append({
-                    "role": "user",
-                    "content": f"（引擎已判定你的攻击：{json.dumps(result, ensure_ascii=False)}。"
-                               f"请忽略你上一段未调用工具的叙述，严格依据这个真实结果重新叙事。）",
+                    "role": "assistant",
+                    "content": "".join(texts) or None,
+                    "tool_calls": [
+                        {"id": c["id"], "type": "function",
+                         "function": {"name": c["name"], "arguments": c["arguments"]}}
+                        for c in calls
+                    ],
                 })
+                for call in calls:
+                    try:
+                        args = json.loads(call["arguments"] or "{}")
+                    except json.JSONDecodeError:
+                        args = {}
+                    result = tools.execute_tool(call["name"], args, character)
+                    messages.append(tools.tool_result_message(call, result))
+                    yield {"type": "tool", "call": {"name": call["name"], "arguments": call["arguments"]}, "result": result}
+                game.update_character(session_id, character)  # 工具副作用（战斗状态/经验）持久化
                 continue
-        assistant_text += "".join(texts)
-        break
-    else:
-        if not assistant_text:  # 超限且无叙事：至少提示工具已执行
-            yield {"type": "error", "text": "行动判定过多，请稍后再试"}
-        # 有叙事则正常输出（工具结果已由 tool 事件展示）
+            # 无工具调用：检测"战斗攻击意图但 LLM 没调工具"（幻觉/退化），后端强制攻击一次
+            if not forced:
+                enemies = tools._combat(character)["enemies"]
+                if enemies and any(k in message for k in ATTACK_INTENT):
+                    forced = True
+                    target = enemies[0]["name"]
+                    result = tools.attack(character, target)
+                    game.update_character(session_id, character)
+                    yield {"type": "tool", "call": {"name": "attack", "arguments": json.dumps({"target": target}, ensure_ascii=False)}, "result": result}
+                    # 丢弃幻觉文本，注入引擎真实结果，要求重新叙事
+                    messages.append({
+                        "role": "user",
+                        "content": f"（引擎已判定你的攻击：{json.dumps(result, ensure_ascii=False)}。"
+                                   f"请忽略你上一段未调用工具的叙述，严格依据这个真实结果重新叙事。）",
+                    })
+                    continue
+            assistant_text += "".join(texts)
+            break
+        else:
+            if not assistant_text:  # 超限且无叙事：至少提示工具已执行
+                yield {"type": "error", "text": "行动判定过多，请稍后再试"}
+            # 有叙事则正常输出（工具结果已由 tool 事件展示）
+    except LLMStreamError as e:
+        # 流中断/额度：友好提示，行动已在聊天里，玩家重发即可
+        yield {"type": "error", "text": str(e)}
+        assistant_text = ""  # 丢弃半截叙事，避免存脏历史
+        return
 
     if assistant_text:
         yield {"type": "delta", "text": assistant_text}
