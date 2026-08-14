@@ -505,6 +505,8 @@ function CreateWizard({ races, classes, onSubmit }) {
             <div className="bg-list">
               {backgrounds.map((b) => (
                 <button key={b.index} className={`bg-card ${form.background === b.name ? "on" : ""}`} onClick={() => {
+                  // 重选当前已选背景不重置（防误触丢失已选技能）
+                  if (form.background === b.name) return;
                   set("background", b.name);
                   // 背景赠送专长与已选专长重复时自动取消选择
                   if (form.feat === b.feat) set("feat", "");
