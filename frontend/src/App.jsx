@@ -96,6 +96,38 @@ const t = (k) => ZH[k] || k; // 未知名称回退英文
 // 熟练项显示：Skill:/Tool: 前缀转中文（工具名有 ZH 映射则翻译）
 const zhProf = (p) => (p.startsWith("Tool: ") ? `工具：${t(p.replace("Tool: ", ""))}` : t(p.replace("Skill: ", "")));
 
+// 错误边界：任何渲染/事件错误显示在页面而非白屏，便于定位与反馈
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    console.error("RenderError:", error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="crash-box">
+          <h3>⚠️ 页面出错了</h3>
+          <pre>{String(this.state.error && (this.state.error.stack || this.state.error.message || this.state.error))}</pre>
+          <button className="primary" onClick={() => window.location.reload()}>重新加载</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// 全局事件错误（onChange/onClick 内抛错不会被 ErrorBoundary 捕获）——显示在页面底部
+window.addEventListener("error", (e) => {
+  const box = document.getElementById("runtime-error");
+  if (box) box.textContent = `运行时错误：${e.message}`;
+});
+
 // 主动能力展示（与后端 tools.FEATURE_ACTIONS 白名单对应）
 const FEATURES_UI = {
   "second-wind": { zh: "二次呼吸", action: "附赠动作", rest: "短休" },
@@ -259,7 +291,8 @@ function App() {
   }
 
   return (
-    <div className="app">
+    <ErrorBoundary>
+      <div className="app">
       {!session ? (
         <div className="home">
           <CreateWizard races={races} classes={classes} onSubmit={createCharacter} />
@@ -287,7 +320,9 @@ function App() {
           onNewGame={() => setSession(null)}
         />
       )}
+      <div id="runtime-error" className="runtime-error" />
     </div>
+    </ErrorBoundary>
   );
 }
 
