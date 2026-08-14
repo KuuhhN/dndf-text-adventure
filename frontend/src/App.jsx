@@ -298,7 +298,7 @@ function CreateWizard({ races, classes, onSubmit }) {
   const [form, setForm] = useState({
     name: "", race: "", class_name: "", method: "point-buy",
     abilities: { STR: 8, DEX: 8, CON: 8, INT: 8, WIS: 8, CHA: 8 },
-    chosen_skills: [], skilled_skills: [], background: "", feat: "",
+    chosen_skills: [], skilled_skills: [], expertise_skills: [], background: "", feat: "",
   });
   const [raceDetail, setRaceDetail] = useState(null);
   const [classDetail, setClassDetail] = useState(null);
@@ -316,6 +316,7 @@ function CreateWizard({ races, classes, onSubmit }) {
     set("class_name", name);
     set("chosen_skills", []);
     set("skilled_skills", []);  // 换职业后原自选技能可能已熟练/不可用，清空重选
+    set("expertise_skills", []);  // 换职业后专精选择失效，清空重选
     const d = await (await fetch(`${API}/api/classes/${name}`)).json();
     setClassDetail(d);
     if (name && !feats.length) {
@@ -335,7 +336,8 @@ function CreateWizard({ races, classes, onSubmit }) {
     (step === 3 && (form.method === "rolled" ? rolled : spent() <= PB_BUDGET)) ||
     (step === 4 && form.background) ||
     (step === 5 && form.chosen_skills.length === (classDetail?.skill_choices?.choose ?? 0) &&
-      (form.feat !== "Skilled" || form.skilled_skills.length === 3)) ||
+      (form.feat !== "Skilled" || form.skilled_skills.length === 3) &&
+      (!hasExpertise || form.expertise_skills.length === 2)) ||
     (step === 6 && form.name.trim());
 
   function spent() {
@@ -365,6 +367,8 @@ function CreateWizard({ races, classes, onSubmit }) {
     .filter((s) => SKILL_HINTS[s]);
   const bgFeat = backgrounds.find((b) => b.name === form.background)?.feat;
   const hasSkilled = form.feat === "Skilled";
+  // 专精（游荡者 1 级）：1 级特性含 Expertise
+  const hasExpertise = (classDetail?.level_features?.["1"] || []).some((f) => f.name === "Expertise");
   // 职业固定熟练技能（技能页置灰用，提前计算避免每次渲染重建）
   const classFixedSkills = (classDetail?.proficiencies || [])
     .filter((p) => String(p).startsWith("Skill: "))
@@ -504,6 +508,7 @@ function CreateWizard({ races, classes, onSubmit }) {
                   if (form.feat === b.feat) set("feat", "");
                   // 换背景后原自选技能可能已被背景覆盖为熟练，清空重选
                   set("skilled_skills", []);
+                  set("expertise_skills", []);
                 }}>
                   <b>{t(b.name)}</b>
                   <span>赠送专长：{t(b.feat)}</span>
@@ -580,6 +585,37 @@ function CreateWizard({ races, classes, onSubmit }) {
                   })}
                 </div>
                 <p className="pb-note">已选 {form.skilled_skills.length}/3（灰色为已熟练技能，不可重复选）</p>
+              </>
+            )}
+            {hasExpertise && (
+              <>
+                <div className="skill-pick-title">
+                  🎯 专精（{t(form.class_name)}）：选 2 个已熟练技能，检定熟练加值翻倍
+                </div>
+                <div className="skill-pick-opts">
+                  {Object.keys(SKILL_HINTS).map((s) => {
+                    const prof = form.chosen_skills.includes(s) || bgSkills.includes(s) ||
+                      classFixedSkills.includes(s) || form.skilled_skills.includes(s);
+                    const picked = form.expertise_skills.includes(s);
+                    return (
+                      <label key={s} className={`chip ${picked ? "on" : ""} ${!prof ? "taken" : ""}`}>
+                        <input
+                          type="checkbox"
+                          disabled={!prof}
+                          checked={picked}
+                          onChange={() => {
+                            const next = picked
+                              ? form.expertise_skills.filter((x) => x !== s)
+                              : [...form.expertise_skills, s].slice(0, 2);
+                            set("expertise_skills", next);
+                          }}
+                        />
+                        {t(s)}
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="pb-note">已选 {form.expertise_skills.length}/2（灰色为未熟练技能，专精只能选已熟练）</p>
               </>
             )}
           </div>
@@ -690,6 +726,12 @@ function GameView({ character, messages, input, busy, setInput, send, sendText, 
                   </div>
                 );
               })}
+              {c.expertise_skills?.length > 0 && (
+                <div className="passive-item">
+                  <b>专精</b>
+                  <small>{c.expertise_skills.map(t).join("、")} 检定熟练加值翻倍（自动）</small>
+                </div>
+              )}
             </div>
           )}
           {c.combat?.feature_uses && Object.keys(c.combat.feature_uses).length > 0 && (

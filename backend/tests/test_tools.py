@@ -627,3 +627,40 @@ def test_background_skills_auto_granted():
                          chosen_skills=["Athletics", "Perception"])
     assert "Sleight of Hand" in c["proficient_skills"], "背景技能应自动熟练"
     assert "Stealth" in c["proficient_skills"], "背景技能应自动熟练"
+
+
+def test_rogue_expertise_doubles_proficiency():
+    """游荡者专精：选 2 个已熟练技能，熟练加值翻倍（+2 → +4）。"""
+    from app.character import create_character
+
+    c = create_character("EX", "Human", "Rogue",
+                         chosen_skills=["Stealth", "Sleight of Hand"],
+                         expertise_skills=["Stealth", "Sleight of Hand"])
+    mod = c["modifiers"]["DEX"]
+    assert c["skills"]["Stealth"] == mod + 4, f"专精应翻倍为 +4，实际 {c['skills']['Stealth']}"
+    assert c["skills"]["Sleight of Hand"] == mod + 4
+    assert c["expertise_skills"] == ["Sleight of Hand", "Stealth"]
+
+
+def test_rogue_expertise_backfills_from_proficient():
+    """游荡者专精：不足 2 个/非法输入时，从已熟练技能自动补齐；非熟练技能被忽略。"""
+    from app.character import create_character
+
+    c = create_character("EX2", "Human", "Rogue",
+                         chosen_skills=["Stealth", "Perception"],
+                         expertise_skills=["Stealth", "Athletics"])  # Athletics 未熟练 → 忽略
+    mod = c["modifiers"]["DEX"]
+    assert c["skills"]["Stealth"] == mod + 4, "专精技能应翻倍"
+    expert = c["expertise_skills"]
+    assert len(expert) == 2, f"应补满 2 个专精，实际 {expert}"
+    assert "Stealth" in expert and "Athletics" not in expert
+
+
+def test_expertise_ignored_for_non_rogue():
+    """非游荡者职业传 expertise_skills 应被忽略（无 Expertise 特性）。"""
+    from app.character import create_character
+
+    c = create_character("NF", "Human", "Fighter", chosen_skills=["Athletics", "Perception"],
+                         expertise_skills=["Athletics", "Perception"])
+    assert c["expertise_skills"] == [], "非游荡者不应有专精"
+    assert c["skills"]["Athletics"] == c["modifiers"]["STR"] + 2, "不应翻倍"

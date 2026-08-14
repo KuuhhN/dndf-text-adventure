@@ -134,7 +134,7 @@ def test_level_5_proficiency_bonus():
     leveled = check_level_up(c)
     assert 5 in leveled
     assert c["proficiency_bonus"] == 3
-    assert c["skills"]["Stealth"] == old_stealth + 1  # 熟练技能 +1
+    assert c["skills"]["Stealth"] == old_stealth + 2  # 专精技能：熟练加值 2->3 翻倍 +2
     assert c["skills"]["Acrobatics"] == c["modifiers"]["DEX"]  # 非熟练不变
 
 

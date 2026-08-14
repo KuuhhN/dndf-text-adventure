@@ -105,6 +105,7 @@ def create_character(
     background: str = "",
     feat: str = "",
     skilled_skills: list[str] | None = None,
+    expertise_skills: list[str] | None = None,
 ) -> dict:
     race = db.get_race(race_name)
     cls = db.get_class(class_name)
@@ -194,6 +195,19 @@ def create_character(
             proficient.add(s)
             skills[s] += prof_bonus
 
+    # 专精（Expertise，游荡者 1 级）：从已熟练技能中选 2 个，熟练加值翻倍（+2 → +4）
+    lv1_features = db.get_class_detail(class_name).get("level_features", {})
+    lv1_features = lv1_features.get("1") or lv1_features.get(1) or []
+    expertise_picked: list[str] = []
+    if any("expertise" in (f.get("index") or "").lower() for f in lv1_features):
+        picked = list(dict.fromkeys(s for s in (expertise_skills or []) if s in SKILL_ABILITIES and s in proficient))[:2]
+        candidates = [s for s in SKILL_ABILITIES if s in proficient and s not in picked]
+        for s in picked + candidates[: max(0, 2 - len(picked))]:
+            if s in expertise_picked:
+                continue  # 防重复输入双倍翻倍
+            expertise_picked.append(s)
+            skills[s] += prof_bonus  # 翻倍 = 熟练加值再加一次
+
     character = {
         "name": name,
         "race": race_name,
@@ -210,6 +224,7 @@ def create_character(
         "size": race.get("size", "Medium"),
         "proficiency_bonus": prof_bonus,
         "proficient_skills": sorted(proficient),
+        "expertise_skills": sorted(expertise_picked),
         "skills": skills,
         "hit_die": hit_die,
         "inventory": [],
@@ -244,12 +259,13 @@ def check_level_up(character: dict) -> list[int]:
             character["proficiency_bonus"] = PROF_BONUS_BY_LEVEL[character["level"]]
         leveled.append(character["level"])
     if leveled:
-        # 熟练加值变化后重算技能
+        # 熟练加值变化后重算技能（专精技能按 2 倍熟练加值）
         prof_bonus = character["proficiency_bonus"]
         proficient = set(character["proficient_skills"])
+        expert = set(character.get("expertise_skills", []))
         character["skills"] = {
             skill: ability_modifier(character["abilities"][SKILL_ABILITIES[skill]])
-            + (prof_bonus if skill in proficient else 0)
+            + (2 * prof_bonus if skill in expert else prof_bonus if skill in proficient else 0)
             for skill in SKILL_ABILITIES
         }
         # 升级可能解锁新能力（如盗贼 2 级狡诈行动）
