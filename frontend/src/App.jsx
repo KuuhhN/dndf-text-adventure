@@ -732,7 +732,7 @@ function formatTool(evt) {
     case "roll_dice":
       return `🎲 掷 ${r.expression}：${r.rolls.join(" + ")}${r.total !== r.rolls[0] ? ` = ${r.total}` : ""}${r.crit ? "  💥重击！" : ""}${r.fumble ? "  💀失手！" : ""}`;
     case "ability_check":
-      return `🎯 ${r.label}：D20 ${r.d20} + ${r.modifier} = ${r.total}${r.crit ? "  💥大成功！" : ""}${r.fumble ? "  💀大失败！" : ""}`;
+      return `🎯 ${r.label}：D20 ${r.d20} + ${r.modifier} = ${r.total}${r.dc != null ? `（DC ${r.dc}）${r.success ? " ✅成功" : " ❌失败"}` : ""}${r.lucky_reroll ? " 🍀幸运重掷" : ""}${r.crit ? "  💥大成功！" : ""}${r.fumble ? "  💀大失败！" : ""}`;
     case "attack":
       return `⚔️ 攻击 ${r.target}（AC ${r.target_ac}）：攻击掷 ${r.attack_roll} + ${r.to_hit_bonus} = ${r.attack_total} → ${r.hit ? "命中！" : "未命中"}${r.damage ? `，伤害 ${r.damage}${r.crit ? "（重击！）" : ""}` : ""}`;
     case "lookup":
