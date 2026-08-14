@@ -12,6 +12,7 @@ body {
 
 .app {
   height: 100vh;
+  overflow-y: auto; /* 创建向导 + 存档列表可能超过一屏，允许滚动 */
 }
 
 /* ---- 创建向导 ---- */
@@ -209,6 +210,30 @@ body {
   color: #6b4f2a;
   line-height: 1.7;
   margin-top: 3px;
+}
+
+/* 一句话用途（通俗版特性描述） */
+.feat-sum {
+  font-size: 13.5px;
+  color: #4a3a1e;
+  line-height: 1.6;
+  margin: 4px 0 0;
+}
+
+.detail-traits details {
+  margin-top: 4px;
+}
+
+.detail-traits summary {
+  cursor: pointer;
+  color: #8a6a2a;
+  font-size: 12px;
+}
+
+.feat-full {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  line-height: 1.6;
 }
 
 /* 属性加点 */
@@ -617,10 +642,43 @@ button.primary:disabled {
 
 .skill {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
   font-size: 13px;
-  padding: 3px 0;
+  padding: 4px 6px;
+  border: 1px solid transparent;
   border-bottom: 1px dashed #c9a86a;
+  background: none;
+  color: #4a3a1e;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 6px;
+  font-family: inherit;
+}
+
+.skill:hover {
+  background: #f0dfae;
+  border-color: #c9a86a;
+}
+
+.skill:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.skill .prof {
+  font-weight: 700;
+  color: #7a5220;
+}
+
+.skill .skill-hint {
+  flex: 1;
+  color: #9a8458;
+  font-size: 11px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .skill .pos {
@@ -630,6 +688,76 @@ button.primary:disabled {
 
 .skill .neg {
   color: #a0342c;
+}
+
+/* 可用能力栏（游戏内主动技能） */
+.ability-bar {
+  background: #f5ecd7;
+  border: 1px solid #c9a86a;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 8px;
+}
+
+.ability-bar h3 {
+  font-size: 13px;
+  color: #7a5c33;
+  font-family: "KaiTi", "STKaiti", serif;
+  margin-bottom: 6px;
+}
+
+.ability-bar h3 small {
+  font-size: 11px;
+  color: #9a8458;
+  font-family: inherit;
+}
+
+.ability-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  margin-bottom: 6px;
+  border: 1px solid #b08a3e;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #f8ecc8, #ecd9a0);
+  color: #4a3010;
+  cursor: pointer;
+  font-family: "KaiTi", "STKaiti", serif;
+  font-size: 14px;
+  text-align: left;
+}
+
+.ability-btn:last-child {
+  margin-bottom: 0;
+}
+
+.ability-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffe9a8, #f0d488);
+}
+
+.ability-btn small {
+  font-size: 11px;
+  color: #8a6a3a;
+  background: #f5ecd7;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.ability-btn em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 12px;
+  color: #7a5220;
+  font-weight: 600;
+}
+
+.ability-btn.spent {
+  opacity: 0.45;
+  cursor: not-allowed;
+  text-decoration: line-through;
+  filter: grayscale(0.6);
 }
 
 .enemies h3 {

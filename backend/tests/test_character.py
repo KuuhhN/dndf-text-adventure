@@ -202,3 +202,14 @@ def test_feat_validation():
         create_character("FT3", "Human", "Fighter", feat="Boon of Fate")
     with pt.raises(ValueError):
         create_character("FT4", "Human", "Fighter", feat="NotAFeat")
+
+
+def test_get_feats_only_level1():
+    """创建向导只应展示 1 级可选的 origin 专长（回归：之前 4 级/史诗专长混入列表）。"""
+    from app import db
+    feats = db.get_feats()
+    names = [f["name"] for f in feats]
+    assert len(feats) == 4
+    assert all(f["type"] == "origin" for f in feats)
+    assert "Alert" in names and "Magic Initiate" in names
+    assert not any("Boon" in n or "Ability Score" in n or "Grappler" in n for n in names)

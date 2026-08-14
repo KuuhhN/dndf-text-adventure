@@ -177,7 +177,7 @@ def create_character(
         for skill in SKILL_ABILITIES
     }
 
-    return {
+    character = {
         "name": name,
         "race": race_name,
         "class": class_name,
@@ -198,9 +198,12 @@ def create_character(
         "inventory": [],
         "spells": [],
         "xp": 0,
-        "combat": {"enemies": []},
+        "combat": {"enemies": [], "feature_uses": {}, "rage": False},
         "quests": [],
     }
+    from .tools import init_feature_uses  # 循环导入防护：tools 也 import character
+    init_feature_uses(character)
+    return character
 
 
 # 5e 升级 XP 阈值（1->2 起）

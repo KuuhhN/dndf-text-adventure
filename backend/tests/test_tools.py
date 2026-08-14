@@ -261,3 +261,87 @@ def test_execute_tool_inventory():
     assert r["item"]["name"] == "干粮"
     r2 = execute_tool("remove_item", {"name": "干粮", "quantity": 2}, c)
     assert c["inventory"][0]["quantity"] == 1
+
+
+def test_feature_uses_initialized_by_class():
+    """创建角色时按职业/种族初始化可用能力次数。"""
+    from app.character import create_character
+    from app.tools import FEATURE_ACTIONS
+
+    fighter = create_character("F", "Human", "Fighter", chosen_skills=["Athletics"])
+    uses = fighter["combat"]["feature_uses"]
+    assert "second-wind" in uses and uses["second-wind"]["remaining"] == 1
+    assert "rage" not in uses
+
+    barb = create_character("B", "Human", "Barbarian", chosen_skills=["Athletics"])
+    assert barb["combat"]["feature_uses"]["rage"]["remaining"] == 2
+
+    dragon = create_character("D", "Dragonborn", "Fighter", chosen_skills=["Athletics"])
+    assert "breath-weapon" in dragon["combat"]["feature_uses"]
+
+    rogue1 = create_character("R", "Human", "Rogue", chosen_skills=["Stealth"])
+    assert "cunning-action" not in rogue1["combat"]["feature_uses"]  # 2 级才解锁
+
+
+def test_use_feature_second_wind_heals_and_consumes():
+    """二次呼吸：回 1d10+等级 血，次数 1->0，再使用报错。"""
+    from app.character import create_character
+    from app.tools import use_feature
+
+    c = create_character("F", "Human", "Fighter", chosen_skills=["Athletics"])
+    c["current_hp"] = 3
+    r = use_feature(c, "second-wind")
+    assert r["healed"] >= 1
+    assert c["current_hp"] == 3 + r["healed"]
+    assert c["combat"]["feature_uses"]["second-wind"]["remaining"] == 0
+    r2 = use_feature(c, "second-wind")
+    assert "error" in r2
+
+
+def test_use_feature_breath_weapon_damages_enemy():
+    """吐息武器：对敌人造成伤害（豁免成功免伤），击杀给经验。"""
+    from app.character import create_character
+    from app.tools import use_feature, encounter
+
+    c = create_character("D", "Dragonborn", "Fighter", chosen_skills=["Athletics"])
+    encounter(c, ["Goblin"])
+    enemy = c["combat"]["enemies"][0]
+    hp_before = enemy["hp"]
+    r = use_feature(c, "breath-weapon", "Goblin")
+    assert r["saved"] in (True, False)
+    assert enemy["hp"] == hp_before - r["damage"]
+    assert c["combat"]["feature_uses"]["breath-weapon"]["remaining"] == 0
+
+
+def test_use_feature_rage_boosts_damage():
+    """狂暴后 attack 近战伤害 +2。"""
+    from app.character import create_character
+    from app.tools import use_feature, attack, encounter
+
+    c = create_character("B", "Human", "Barbarian", chosen_skills=["Athletics"])
+    encounter(c, ["Goblin"])
+    use_feature(c, "rage")
+    assert c["combat"]["rage"] is True
+    r = attack(c, "Goblin")
+    if r["hit"]:
+        assert r.get("rage_bonus") is True
+        assert r["damage"] >= 2
+
+
+def test_use_feature_lay_on_hands_pool():
+    """圣疗：治疗量从 5 点池扣，池为 0 时无法再治疗。"""
+    from app.character import create_character
+    from app.tools import use_feature
+
+    c = create_character("P", "Human", "Paladin", chosen_skills=["Athletics"])
+    c["current_hp"] = 2
+    r = use_feature(c, "lay-on-hands")
+    assert r["healed"] == min(5, c["max_hp"] - 2)
+    assert c["combat"]["feature_uses"]["lay-on-hands"]["remaining"] == 5 - r["healed"]
+    # 池耗尽
+    c["current_hp"] = 0
+    for _ in range(5):
+        r = use_feature(c, "lay-on-hands")
+        if "error" in r:
+            break
+    assert "error" in r

@@ -1,9 +1,12 @@
 """SRD 规则描述批量翻译（英文 → 中文）。
 
 翻译对象：种族特性(traits)、职业 1-2 级特性(features)、专长(feats)。
+- 默认模式：完整翻译，存 key 形如 features:second-wind
+- --summary 模式：一句话剧本用途（≤45 字，通俗易懂），存 key 前缀 sum:
+  （如 sum:features:second-wind）。用户要求"一眼看懂在剧本中能干什么"。
 - 批量：每批 5 条，LLM 返回 JSON {key: 译文}
 - 断点续跑：translations 表已有 key 跳过
-用法：python scripts/translate_srd.py
+用法：python scripts/translate_srd.py [--summary]
 """
 import asyncio
 import json
@@ -19,6 +22,7 @@ from app.llm import stream_chat  # noqa: E402
 
 DB_PATH = db.DB_PATH
 BATCH = 5
+SUMMARY = "--summary" in sys.argv
 
 
 def _conn():
@@ -69,6 +73,8 @@ def collect_targets() -> dict:
         if desc:
             targets[f"feats:{item.get('index', '')}"] = desc
 
+    if SUMMARY:
+        targets = {f"sum:{k}": v for k, v in targets.items()}
     return targets
 
 
@@ -89,12 +95,20 @@ def save_done(items: dict):
 async def translate_batch(batch: dict) -> dict:
     """一次请求翻译一批，LLM 返回 JSON {key: 译文}。"""
     lines = "\n".join(f"[{k}]\n{v}\n" for k, v in batch.items())
-    prompt = (
-        "你是《龙与地下城 5e》官方规则中文翻译专家。把以下英文规则文本翻译成简体中文：\n"
-        "- 术语用国内通译（如 Darkvision→黑暗视觉、Proficiency Bonus→熟练加值）\n"
-        "- 保留原文格式标记（**粗体**、换行）\n"
-        f"- 只输出一个 JSON 对象，键为方括号中的 key，值为译文\n\n{lines}"
-    )
+    if SUMMARY:
+        prompt = (
+            "你是资深《龙与地下城 5e》玩家兼中文译者。把下列英文规则能力，"
+            "各压缩成**一句通俗中文（不超过 45 字）**，说明这个能力在跑团剧本中"
+            "能发挥什么作用、什么时候用。不要翻译全文，不要堆砌术语，像跟朋友介绍一样。\n"
+            f"只输出一个 JSON 对象，键为方括号中的 key，值为那一句话。\n\n{lines}"
+        )
+    else:
+        prompt = (
+            "你是《龙与地下城 5e》官方规则中文翻译专家。把以下英文规则文本翻译成简体中文：\n"
+            "- 术语用国内通译（如 Darkvision→黑暗视觉、Proficiency Bonus→熟练加值）\n"
+            "- 保留原文格式标记（**粗体**、换行）\n"
+            f"- 只输出一个 JSON 对象，键为方括号中的 key，值为译文\n\n{lines}"
+        )
     messages = [{"role": "user", "content": prompt}]
     out = ""
     async for evt in stream_chat(messages, max_tokens=1200):

@@ -66,15 +66,17 @@ def _by_index(table: str, index: str) -> dict | None:
 
 
 def _trait_detail(index: str) -> dict:
-    """特性详情（名称 + 中文描述，无翻译时回退英文）。"""
+    """特性详情（名称 + 一句话用途 + 完整中文描述，无翻译时回退英文）。"""
     item = _by_index("traits", index) or _by_index("features", index)
     if not item:
-        return {"index": index, "name": index, "desc": "", "zh": False}
+        return {"index": index, "name": index, "desc": "", "summary": "", "zh": False}
     zh = get_zh("traits", index) or get_zh("features", index)
+    summary = get_zh("sum:traits", index) or get_zh("sum:features", index) or ""
     return {
         "index": index,
         "name": item.get("name", index),
         "desc": zh or "\n".join(item.get("desc") or []),
+        "summary": summary,
         "zh": zh is not None,
     }
 
@@ -128,21 +130,31 @@ def get_class_detail(name: str) -> dict | None:
     }
 
 
-def get_feats() -> list[dict]:
-    """全部专长（2024 SRD，含中文描述）。"""
+def get_feats(level: int = 1) -> list[dict]:
+    """1 级可选专长（2024 SRD：origin/general 且 minimum_level<=1，含中文描述）。
+
+    ponytail: 创建向导只展示 1 级能选的专长；4 级专长（ASI/Grappler）与
+    史诗赐福（epic-boon）不在此列，避免"1 级看到 4 级内容"的困惑。
+    """
     with _conn() as c:
         rows = c.execute("SELECT data FROM feats ORDER BY name").fetchall()
     out = []
     for r in rows:
         item = json.loads(r["data"])
         idx = item.get("index", "")
+        prereq = item.get("prerequisites") or {}
+        min_lv = prereq.get("minimum_level", 1) if isinstance(prereq, dict) else 1
+        if item.get("type") not in ("origin", "general") or min_lv > level:
+            continue
         zh = get_zh("feats", idx)
+        summary = get_zh("sum:feats", idx) or ""
         out.append({
             "index": idx,
             "name": item.get("name", idx),
             "type": item.get("type", ""),
-            "prerequisites": item.get("prerequisites", ""),
+            "prerequisites": prereq,
             "desc": zh or item.get("description", ""),
+            "summary": summary,
             "zh": zh is not None,
         })
     return out

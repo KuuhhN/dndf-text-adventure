@@ -49,8 +49,78 @@ const ZH = {
   "Dwarven Toughness": "矮人坚韧", "Gnome Cunning": "侏儒狡黠",
   "Artificer's Lore": "工匠学识", Tinker: "工匠", "High Elf Cantrip": "高等精灵戏法",
   "Relentless Endurance": "不屈坚韧", "Menacing": "威吓气质",
+  // 职业 1-2 级特性（向导展示）
+  "Action Surge (1 use)": "动作如潮（1次/短休）", "Arcane Recovery": "奥术恢复",
+  "Arcane Tradition": "奥术传统", "Bardic Inspiration (d6)": "吟游激励（d6）",
+  "Bonus Cantrip": "额外戏法", "Bonus Proficiency": "额外熟练",
+  "Channel Divinity (1/rest)": "引导神力（1次/短休）",
+  "Channel Divinity: Preserve Life": "引导神力：维系生命",
+  "Channel Divinity: Turn Undead": "引导神力：驱散不死",
+  "Danger Sense": "危险感知", "Dark One's Blessing": "黑暗恩赐",
+  "Disciple of Life": "生命门徒", "Divine Domain": "神圣领域",
+  "Divine Domain feature": "神圣领域特性", "Divine Sense": "神圣感知",
+  "Divine Smite": "神圣打击", "Domain Spells": "领域法术",
+  "Draconic Resilience": "龙族韧性", "Dragon Ancestor": "龙族先祖",
+  "Druid Circle": "德鲁伊结社", Druidic: "德鲁伊密语",
+  "Eldritch Invocations": "邪术祈唤", "Evocation Savant": "塑能专精",
+  Expertise: "专精", "Favored Enemy (1 type)": "宿敌（1类）",
+  "Flexible Casting: Converting Spell Slot": "灵活施法：转化法术位",
+  "Flexible Casting: Creating Spell Slots": "灵活施法：创造法术位",
+  "Flurry of Blows": "疾风连击", "Font of Magic": "魔力泉源",
+  "Jack of All Trades": "万事通", Ki: "气", "Lay on Hands": "圣疗",
+  "Martial Arts": "武艺", "Natural Explorer (1 terrain type)": "自然探索者（1类地形）",
+  "Natural Recovery": "自然恢复", "Otherworldly Patron": "异界宗主",
+  "Pact Magic": "契术魔法", "Patient Defense": "凝神防御",
+  "Reckless Attack": "鲁莽攻击", "Sculpt Spells": "法术塑形",
+  "Song of Rest (d6)": "休憩之歌（d6）", "Sorcerous Origin": "术法起源",
+  "Spellcasting: Bard": "施法能力：吟游诗人", "Spellcasting: Cleric": "施法能力：牧师",
+  "Spellcasting: Druid": "施法能力：德鲁伊", "Spellcasting: Paladin": "施法能力：圣武士",
+  "Spellcasting: Ranger": "施法能力：游侠", "Spellcasting: Sorcerer": "施法能力：术士",
+  "Spellcasting: Wizard": "施法能力：法师",
+  "Step of the Wind": "御风步", "Thieves' Cant": "盗贼黑话",
+  "Unarmored Movement": "无甲移动",
+  "Wild Shape (CR 1/4 or below, no flying or swim speed)": "荒野变形（CR 1/4以下）",
 };
 const t = (k) => ZH[k] || k; // 未知名称回退英文
+
+// 主动能力展示（与后端 tools.FEATURE_ACTIONS 白名单对应）
+const FEATURES_UI = {
+  "second-wind": { zh: "二次呼吸", action: "附赠动作", rest: "短休" },
+  rage: { zh: "狂暴", action: "附赠动作", rest: "长休" },
+  "bardic-inspiration-d6": { zh: "吟游激励", action: "附赠动作", rest: "长休" },
+  "lay-on-hands": { zh: "圣疗", action: "动作", rest: "长休" },
+  "breath-weapon": { zh: "吐息武器", action: "动作", rest: "短休", hint: "（目标最近的敌人）" },
+  "cunning-action": { zh: "狡诈行动", action: "附赠动作", rest: "每回合", hint: "（疾走/脱离/巧手）" },
+};
+
+// 技能一句话用途（游戏内技能面板）
+const SKILL_HINTS = {
+  Acrobatics: "翻越障碍、保持平衡、挣脱束缚",
+  "Animal Handling": "安抚或骑乘动物",
+  Arcana: "识别法术与魔法造物",
+  Athletics: "攀爬、游泳、角力",
+  Deception: "说谎骗过对方",
+  History: "回忆历史与传说",
+  Insight: "识破谎言、读懂意图",
+  Intimidation: "用威胁让对方屈服",
+  Investigation: "搜索房间、拼凑线索",
+  Medicine: "稳定濒死同伴、诊断伤病",
+  Nature: "辨认植物、动物与地形",
+  Perception: "发现隐藏的敌人、陷阱、线索",
+  Performance: "演奏表演、取悦观众",
+  Persuasion: "说服 NPC 答应你",
+  Religion: "辨认宗教符号与仪式",
+  "Sleight of Hand": "开锁、扒窃、藏匿小物",
+  Stealth: "不被发现地潜行移动",
+  Survival: "追踪猎物、野外求生",
+};
+
+// 错误消息里的英文名替换成中文（后端错误用英文 key 报专长/背景名）
+const zhError = (msg) => {
+  let m = msg;
+  for (const en of Object.keys(ZH)) m = m.split(en).join(ZH[en]);
+  return m;
+};
 
 function App() {
   const [races, setRaces] = useState([]);
@@ -91,7 +161,7 @@ function App() {
     });
     const d = await resp.json();
     if (!resp.ok) {
-      alert(d.error || "创建失败");
+      alert(zhError(d.error) || "创建失败");
       return;
     }
     setSession({ id: d.session_id, character: d.character });
@@ -289,10 +359,7 @@ function CreateWizard({ races, classes, onSubmit }) {
                   </div>
                   <ul className="detail-traits">
                     {raceDetail.traits.map((tr) => (
-                      <li key={tr.index}>
-                        <b>{t(tr.name)}</b>
-                        <p>{tr.desc}</p>
-                      </li>
+                      <FeatureItem key={tr.index} f={tr} />
                     ))}
                   </ul>
                 </>
@@ -323,10 +390,7 @@ function CreateWizard({ races, classes, onSubmit }) {
                   <ul className="detail-traits">
                     {Object.entries(classDetail.level_features).flatMap(([lv, feats]) =>
                       feats.map((f) => (
-                        <li key={`${lv}-${f.index}`}>
-                          <b>{t(f.name)}</b>
-                          <p>{f.desc}</p>
-                        </li>
+                        <FeatureItem key={`${lv}-${f.index}`} f={f} />
                       ))
                     )}
                   </ul>
@@ -422,7 +486,7 @@ function CreateWizard({ races, classes, onSubmit }) {
               {feats.map((f) => (
                 <button key={f.index} className={`bg-card ${form.feat === f.name ? "on" : ""}`} onClick={() => set("feat", form.feat === f.name ? "" : f.name)}>
                   <b>{t(f.name)}</b>
-                  <span>{f.desc.slice(0, 60)}…</span>
+                  <span className="feat-sum">{f.summary || (f.desc ? f.desc.slice(0, 60) + "…" : "")}</span>
                 </button>
               ))}
             </div>
@@ -459,6 +523,27 @@ function mod(v) {
   return v >= 0 ? `+${v}` : `${v}`;
 }
 
+// 特性条目：一句话用途（大字）+ 完整规则折叠。用户要求"一眼看懂能干什么"。
+function FeatureItem({ f }) {
+  const show = f.summary || "";
+  const hasMore = show && f.desc && f.desc !== show;
+  return (
+    <li>
+      <b>{t(f.name)}</b>
+      {show ? (
+        <>
+          <p className="feat-sum">{show}</p>
+          {hasMore && (
+            <details><summary>📖 完整规则</summary><p className="feat-full">{f.desc}</p></details>
+          )}
+        </>
+      ) : (
+        f.desc && <p>{f.desc.slice(0, 70)}{f.desc.length > 70 ? "…" : ""}</p>
+      )}
+    </li>
+  );
+}
+
 function formatTool(evt) {
   const r = evt.result;
   if (r.error) return `⚠️ ${r.error}`;
@@ -477,6 +562,10 @@ function formatTool(evt) {
       return `🎒 获得 ${r.item.name}${r.item.quantity > 1 ? ` ×${r.item.quantity}` : ""}${r.note === "数量增加" ? "（数量 +1）" : ""}`;
     case "remove_item":
       return `${r.removed ? "🗑️ 已移除" : "🎒 已消耗"} ${r.item.name}${r.item.quantity ? `（剩余 ×${r.item.quantity}）` : ""}`;
+    case "use_feature": {
+      const d = r.healed ? `恢复 ${r.healed} HP` : r.damage !== undefined ? (r.saved ? "敌人躲过了吐息" : `造成 ${r.damage} 伤害`) : r.rage ? "进入狂暴！" : r.note || "";
+      return `⚡ ${r.feature_zh}（${r.action}）：${d}${r.remaining !== undefined ? ` · 剩余 ${r.remaining} 次` : ""}`;
+    }
     default:
       return JSON.stringify(r);
   }
@@ -496,6 +585,29 @@ function GameView({ character, messages, input, busy, setInput, send, sendText, 
             <div className="bar">❤️ HP {c.current_hp}/{c.max_hp} · Lv.{c.level} · XP {c.xp}</div>
             <div className="bar">🛡️ AC {c.ac} · ⚡ {c.speed}ft · 熟练 +{c.proficiency_bonus}</div>
           </div>
+          {c.combat?.feature_uses && Object.keys(c.combat.feature_uses).length > 0 && (
+            <div className="ability-bar">
+              <h3>⚡ 可用能力 <small>（用了即消耗）</small></h3>
+              {Object.entries(c.combat.feature_uses).map(([key, u]) => {
+                const spec = FEATURES_UI[key];
+                if (!spec) return null;
+                const spent = u.total != null && u.remaining <= 0;
+                return (
+                  <button
+                    key={key}
+                    className={`ability-btn ${spent ? "spent" : ""}`}
+                    disabled={spent}
+                    title={spec.hint || ""}
+                    onClick={() => !busy && sendText(`我使用能力【${spec.zh}】${spec.hint || ""}！`)}
+                  >
+                    <b>{spec.zh}</b>
+                    <small>{spec.action}</small>
+                    {u.total != null ? <em>{spent ? "已用完" : `×${u.remaining}`}·{spec.rest}</em> : <em>{spec.rest}</em>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {(c.combat?.enemies?.length > 0) && (
             <div className="enemies">
               <h3>⚔️ 敌人</h3>
@@ -552,12 +664,14 @@ function GameView({ character, messages, input, busy, setInput, send, sendText, 
           ))}
         </div>
         <div className="skills">
-          <h3>技能</h3>
+          <h3>🎯 技能 <small>（点击即用，DM 判定）</small></h3>
           {Object.entries(c.skills).map(([sk, val]) => (
-            <div key={sk} className="skill">
-              <span>{t(sk)}</span>
+            <button key={sk} className="skill" disabled={busy} title={SKILL_HINTS[sk] || ""}
+              onClick={() => sendText(`我要用【${t(sk)}】技能：${SKILL_HINTS[sk] || ""}`)}>
+              <span className={c.proficient_skills?.includes(sk) ? "prof" : ""}>{t(sk)}{c.proficient_skills?.includes(sk) ? "✓" : ""}</span>
+              <small className="skill-hint">{SKILL_HINTS[sk] || ""}</small>
               <span className={val >= 0 ? "pos" : "neg"}>{val >= 0 ? "+" : ""}{val}</span>
-            </div>
+            </button>
           ))}
         </div>
         <button className="ghost" onClick={onNewGame}>＋ 新冒险</button>

@@ -178,6 +178,9 @@ def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
             result["crit_damage"] = True
         result["damage_rolls"] = dmg["rolls"]
         result["damage"] = dmg["total"] + _modifier(character, "STR")
+        if _combat(character).get("rage"):
+            result["damage"] += 2  # 狂暴：近战伤害 +2
+            result["rage_bonus"] = True
         enemy["hp"] -= result["damage"]
         result["target_hp"] = enemy["hp"]
         if enemy["hp"] <= 0:  # 击杀：移除 + 经验
@@ -253,7 +256,148 @@ def lookup(kind: str, name: str) -> dict:
     }
 
 
-# LLM 工具 schema（OpenAI function calling 格式）
+# 主动能力白名单：可由引擎结算的特性（LLM 不能编造效果，次数引擎管）
+# ponytail: 只覆盖 1-2 级高价值主动能力；其余特性在技能面板标注"被动/由 DM 判定"。
+# 作用：技能栏显示剩余次数，用了即消耗（短休/长休恢复由 DM 叙事中引导）。
+FEATURE_ACTIONS = {
+    "second-wind": {
+        "zh": "二次呼吸", "action": "附赠动作", "effect": "heal", "dice": "1d10",
+        "extra": "level", "uses": 1, "rest": "短休",
+        "summary": "战斗中喘口气，立即恢复 1d10+等级 点生命",
+    },
+    "rage": {
+        "zh": "狂暴", "action": "附赠动作", "effect": "rage", "uses": 2, "rest": "长休",
+        "summary": "进入狂暴：本场战斗近战伤害 +2",
+    },
+    "bardic-inspiration-d6": {
+        "zh": "吟游激励", "action": "附赠动作", "effect": "inspiration", "uses": 3, "rest": "长休",
+        "summary": "给同伴打气：下一次攻击或检定 +1d6",
+    },
+    "lay-on-hands": {
+        "zh": "圣疗", "action": "动作", "effect": "heal", "pool": 5, "uses": 5, "rest": "长休",
+        "summary": "通过触碰治疗同伴或自己，治疗量从每天 5 点的池中扣除",
+    },
+    "breath-weapon": {
+        "zh": "吐息武器", "action": "动作", "effect": "damage", "dice": "2d6",
+        "save": "DEX", "uses": 1, "rest": "短休",
+        "summary": "喷出元素吐息：敌人 DEX 豁免失败受 2d6 伤害",
+    },
+    "cunning-action": {
+        "zh": "狡诈行动", "action": "附赠动作", "effect": "bonus_action", "uses": None,
+        "rest": "每回合", "min_level": 2,
+        "summary": "每回合可用附赠动作做：疾走、脱离战斗、或巧手",
+    },
+}
+
+
+def _combat(character: dict) -> dict:
+    return character.setdefault("combat", {"enemies": [], "feature_uses": {}, "rage": False})
+
+
+def init_feature_uses(character: dict) -> dict:
+    """按职业/种族初始化可用能力次数（创建角色时调用）。"""
+    combat = _combat(character)
+    uses = combat.setdefault("feature_uses", {})
+    race = (character.get("race") or "").lower()
+    cls = (character.get("class") or "").lower()
+    available = set()
+    if "dragonborn" in race:
+        available.add("breath-weapon")
+    if cls == "fighter":
+        available.add("second-wind")
+    if cls == "barbarian":
+        available.add("rage")
+    if cls == "bard":
+        available.add("bardic-inspiration-d6")
+    if cls == "paladin":
+        available.add("lay-on-hands")
+    if cls == "rogue" and character.get("level", 1) >= 2:
+        available.add("cunning-action")
+    for idx in available:
+        if idx not in uses:
+            spec = FEATURE_ACTIONS[idx]
+            uses[idx] = {"remaining": spec["uses"], "total": spec["uses"]}
+    return uses
+
+
+def use_feature(character: dict, feature: str, target: str = "") -> dict:
+    """使用主动能力（引擎结算）：治疗/狂暴/吐息/激励。
+
+    副作用：扣次数、改 HP/狂暴标记/敌人 HP；次数用完返回 error 由 LLM 叙述。
+    """
+    combat = _combat(character)
+    uses = combat.setdefault("feature_uses", {})
+    spec = FEATURE_ACTIONS.get(feature)
+    if not spec:
+        raise ValueError(f"未知能力: {feature}（可用: {', '.join(FEATURE_ACTIONS)}）")
+    rec = uses.get(feature)
+    if rec is None:
+        raise ValueError(f"角色不拥有能力「{spec['zh']}」")
+    if spec["uses"] is not None and rec["remaining"] <= 0:
+        return {"error": f"「{spec['zh']}」已用完，需要{spec['rest']}才能恢复"}
+    if character.get("level", 1) < spec.get("min_level", 1):
+        return {"error": f"「{spec['zh']}」需要 {spec['min_level']} 级"}
+
+    result = {"type": "use_feature", "feature": feature, "feature_zh": spec["zh"],
+              "action": spec["action"], "summary": spec["summary"]}
+
+    if spec["effect"] == "heal":
+        if spec.get("pool"):  # 圣疗：从池中扣
+            amt = min(spec["pool"], character["max_hp"] - character["current_hp"])
+            character["current_hp"] += amt
+            result["healed"] = amt
+        else:
+            dice = spec["dice"]
+            extra = character["level"] if spec.get("extra") == "level" else 0
+            healed = roll(dice)["total"] + extra
+            before = character["current_hp"]
+            character["current_hp"] = min(character["max_hp"], character["current_hp"] + healed)
+            healed = character["current_hp"] - before
+            result["healed"] = healed
+            result["player_hp"] = character["current_hp"]
+    elif spec["effect"] == "rage":
+        combat["rage"] = True
+        result["rage"] = True
+        result["note"] = "本场战斗近战伤害 +2"
+    elif spec["effect"] == "damage":
+        if not combat["enemies"]:
+            raise ValueError("没有敌人在战斗中，无法使用吐息")
+        enemy = next((e for e in combat["enemies"] if e["name"] == target), combat["enemies"][0])
+        dc = 8 + _modifier(character, "CON") + character["proficiency_bonus"]
+        monster = db.get_monster(enemy["name"])
+        dex_mod = (monster.get("dexterity", 10) - 10) // 2 if monster else 0
+        save_roll = roll("1d20")["total"] + dex_mod
+        saved = save_roll >= dc
+        dmg = roll(spec["dice"])["total"] if not saved else 0  # 简化为失败全伤/成功免伤
+        enemy["hp"] -= dmg
+        result.update({
+            "target": enemy["name"], "dc": dc, "save_roll": save_roll,
+            "saved": saved, "damage": dmg, "target_hp": enemy["hp"],
+        })
+        if enemy["hp"] <= 0:
+            result["killed"] = True
+            xp = monster.get("xp", 0) if monster else 0
+            character["xp"] = character.get("xp", 0) + xp
+            result["xp_gained"] = xp
+            combat["enemies"] = [e for e in combat["enemies"] if e["name"] != enemy["name"]]
+            leveled = check_level_up(character)
+            if leveled:
+                result["level_up"] = leveled
+    elif spec["effect"] == "inspiration":
+        result["note"] = "下一次攻击或检定 +1d6（叙事中 DM 应用）"
+    elif spec["effect"] == "bonus_action":
+        result["note"] = "本回合可用附赠动作：疾走 / 脱离战斗 / 巧手"
+
+    if spec["uses"] is not None:
+        if spec.get("pool"):
+            rec["remaining"] = max(0, rec["remaining"] - result.get("healed", 0))
+        else:
+            rec["remaining"] -= 1
+    result["remaining"] = rec["remaining"]
+    return result
+
+
+
 TOOLS = [
     {
         "type": "function",
@@ -380,6 +524,21 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "use_feature",
+            "description": "使用角色的主动能力（二次呼吸/狂暴/吐息武器/圣疗/吟游激励/狡诈行动）。玩家明确表示要使用某项能力时调用；引擎结算效果并扣减次数，叙事以结果为准。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "feature": {"type": "string", "description": "能力 key（second-wind/rage/bardic-inspiration-d6/lay-on-hands/breath-weapon/cunning-action）"},
+                    "target": {"type": "string", "description": "目标（攻击性能力如吐息需要：敌人名，如 Goblin）"},
+                },
+                "required": ["feature"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "lookup",
             "description": "查询 D&D 5e 规则数据（怪物/法术/装备）。玩家询问怪物信息、想施法或购买装备时使用。",
             "parameters": {
@@ -415,6 +574,8 @@ def execute_tool(name: str, args: dict, character: dict | None = None) -> dict:
             return add_item(character, args["name"], args.get("description", ""), args.get("quantity", 1))
         if name == "remove_item":
             return remove_item(character, args["name"], args.get("quantity", 1))
+        if name == "use_feature":
+            return use_feature(character, args["feature"], args.get("target", ""))
         if name == "lookup":
             return lookup(args["kind"], args["name"])
         return {"error": f"未知工具: {name}"}
