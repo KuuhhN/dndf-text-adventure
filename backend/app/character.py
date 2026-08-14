@@ -182,18 +182,12 @@ def create_character(
         for skill in SKILL_ABILITIES
     }
 
-    # 技能熟练专长（Skilled）：额外 3 个技能熟练（优先玩家自选，未传则取修正最高的）
+    # 技能熟练专长（Skilled）：额外 3 个技能熟练（用户自选优先，不足自动补齐——职业/背景已熟练的会被过滤）
     if "Skilled" in feats:
-        if skilled_skills:
-            # 校验：必须是技能名、未已熟练、最多 3 个
-            picked = [s for s in skilled_skills if s in SKILL_ABILITIES and s not in proficient][:3]
-            if len(picked) < min(3, len(skilled_skills)):
-                raise ValueError("技能熟练专长的技能选择无效（需选 3 个未熟练技能）")
-        else:
-            candidates = [s for s in SKILL_ABILITIES if s not in proficient]
-            candidates.sort(key=lambda s: ability_modifier(abilities[SKILL_ABILITIES[s]]), reverse=True)
-            picked = candidates[:3]
-        for s in picked:
+        picked = [s for s in (skilled_skills or []) if s in SKILL_ABILITIES and s not in proficient][:3]
+        candidates = [s for s in SKILL_ABILITIES if s not in proficient and s not in picked]
+        candidates.sort(key=lambda s: ability_modifier(abilities[SKILL_ABILITIES[s]]), reverse=True)
+        for s in picked + candidates[: max(0, 3 - len(picked))]:
             proficient.add(s)
             skills[s] += prof_bonus
 

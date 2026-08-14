@@ -315,6 +315,7 @@ function CreateWizard({ races, classes, onSubmit }) {
   async function pickClass(name) {
     set("class_name", name);
     set("chosen_skills", []);
+    set("skilled_skills", []);  // 换职业后原自选技能可能已熟练/不可用，清空重选
     const d = await (await fetch(`${API}/api/classes/${name}`)).json();
     setClassDetail(d);
     if (name && !feats.length) {
@@ -497,6 +498,8 @@ function CreateWizard({ races, classes, onSubmit }) {
                   set("background", b.name);
                   // 背景赠送专长与已选专长重复时自动取消选择
                   if (form.feat === b.feat) set("feat", "");
+                  // 换背景后原自选技能可能已被背景覆盖为熟练，清空重选
+                  set("skilled_skills", []);
                 }}>
                   <b>{t(b.name)}</b>
                   <span>赠送专长：{t(b.feat)}</span>
@@ -551,7 +554,10 @@ function CreateWizard({ races, classes, onSubmit }) {
                 </div>
                 <div className="skill-pick-opts">
                   {Object.keys(SKILL_HINTS).map((s) => {
-                    const taken = form.chosen_skills.includes(s) || bgSkills.includes(s);
+                    const classFixed = (classDetail?.proficiencies || [])
+                      .filter((p) => String(p).startsWith("Skill: "))
+                      .map((p) => String(p).replace("Skill: ", ""));
+                    const taken = form.chosen_skills.includes(s) || bgSkills.includes(s) || classFixed.includes(s);
                     const picked = form.skilled_skills.includes(s);
                     return (
                       <label key={s} className={`chip ${picked ? "on" : ""} ${taken ? "taken" : ""}`}>

@@ -571,15 +571,29 @@ def test_skilled_feat_user_picked_skills():
     assert c["skills"]["Stealth"] == c["modifiers"]["DEX"] + 2
 
 
-def test_skilled_feat_rejects_duplicate_pick():
-    """技能熟练专长：选已熟练技能视为无效（数量不足 3 拒绝）。"""
-    import pytest as pt
+def test_skilled_feat_filters_duplicates_and_backfills():
+    """技能熟练专长：背景已熟练的自选被过滤，总数仍补满 3 个新熟练，不抛错。"""
     from app.character import create_character
 
-    with pt.raises(ValueError):
-        create_character("SD", "Human", "Fighter", feat="Skilled",
+    # Sleight of Hand 是罪犯背景熟练 → 过滤；Athletics（未熟练）保留；补齐 1 个；总数 = 4 基础 + 3 专长
+    c = create_character("SF", "Human", "Fighter", feat="Skilled", background="Criminal",
+                         chosen_skills=["Insight", "History"],
+                         skilled_skills=["Athletics", "Sleight of Hand", "Medicine"])
+    assert len(c["proficient_skills"]) == 7, f"应 4+3=7 个熟练，实际 {c['proficient_skills']}"
+    assert "Athletics" in c["proficient_skills"], "未熟练的自选应保留"
+    assert "Medicine" in c["proficient_skills"], "未熟练的自选应保留"
+    assert "Sleight of Hand" in c["proficient_skills"], "背景熟练不受影响"
+
+
+def test_skilled_feat_backfills_when_short():
+    """技能熟练专长：只传 2 个有效自选时自动补齐到 3 个。"""
+    from app.character import create_character
+
+    c = create_character("SS", "Human", "Fighter", feat="Skilled",
                          chosen_skills=["Athletics", "Perception"],
-                         skilled_skills=["Athletics", "Stealth", "Arcana"])  # Athletics 已熟练
+                         skilled_skills=["Medicine", "Persuasion"])
+    gained = [s for s in c["proficient_skills"] if s not in ("Athletics", "Perception")]
+    assert len(gained) == 3, f"应补齐到 3 个，实际 {gained}"
 
 
 def test_background_skills_auto_granted():
