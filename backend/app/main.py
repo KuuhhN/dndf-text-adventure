@@ -126,8 +126,10 @@ async def chat(req: ChatRequest):
         try:
             async for event in game_chat(req.session_id, req.message):
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-        except Exception as e:  # 流中报错也以事件形式送达前端
-            yield f"data: {json.dumps({'type': 'error', 'text': str(e)}, ensure_ascii=False)}\n\n"
+        except Exception as e:  # 流中报错也以事件形式送达前端（脱敏：详情只进日志）
+            import logging
+            logging.getLogger("dndf").exception("chat 流异常")
+            yield f"data: {json.dumps({'type': 'error', 'text': '游戏引擎出错，请重试（详见服务端日志）'}, ensure_ascii=False)}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream")

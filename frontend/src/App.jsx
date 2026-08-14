@@ -196,7 +196,12 @@ function App() {
         if (!line.startsWith("data: ")) continue;
         const payload = line.slice(6);
         if (payload === "[DONE]") continue;
-        const evt = JSON.parse(payload);
+        let evt;
+        try {
+          evt = JSON.parse(payload);
+        } catch {
+          continue; // 容错：坏行跳过，不中断流解析
+        }
         if (evt.type === "delta") {
           setMessages((prev) => {
             const next = [...prev];
