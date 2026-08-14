@@ -685,3 +685,22 @@ def test_ability_check_with_dc_engine_judges():
     with patch("app.tools.roll", return_value={"rolls": [1], "total": 1, "crit": False, "fumble": True}):
         no_dc = ability_check(c, "Perception")
         assert no_dc["success"] is None, "不传 dc 时不判定（兼容旧行为）"
+
+
+def test_lucky_reroll_recomputes_success_with_dc():
+    """半身人幸运重掷后：success 按重掷结果重算（review should-fix 回归）。"""
+    from unittest.mock import patch
+    from app.tools import ability_check
+    from app.character import create_character
+
+    c = create_character("LK", "Halfling", "Rogue", chosen_skills=["Stealth", "Perception"])
+    mod = c["skills"]["Perception"]
+    # 首次掷 1（fumble 触发幸运），重掷 20 → total 高，dc=10 应 success=True
+    with patch("app.tools.roll", side_effect=[
+        {"rolls": [1], "total": 1, "crit": False, "fumble": True},
+        {"rolls": [20], "total": 20, "crit": True, "fumble": False},
+    ]):
+        r = ability_check(c, "Perception", dc=10)
+        assert r["lucky_reroll"] is True
+        assert r["total"] == 20 + mod
+        assert r["success"] is True, f"重掷后 total {20+mod} >= 10 应成功，实际 {r['success']}"

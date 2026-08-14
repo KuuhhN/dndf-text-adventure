@@ -75,6 +75,8 @@ def ability_check(character: dict, skill_or_ability: str, dc: int | None = None)
                 "fumble": r2.get("fumble", False),
                 "lucky_remaining": lucky_uses["remaining"],
             })
+            if dc is not None:  # 重掷后按新结果重算成败（review should-fix）
+                result["success"] = (r2["total"] + mod) >= dc
     return result
 
 
