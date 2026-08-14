@@ -687,7 +687,11 @@ def execute_tool(name: str, args: dict, character: dict | None = None) -> dict:
         if name == "roll_dice":
             return roll(args["dice"])
         if name == "ability_check":
-            return ability_check(character, args["skill_or_ability"], args.get("dc"))
+            dc = args.get("dc")
+            if dc is not None:  # 规则完整性：钳制难度范围，排除 bool（True==1 陷阱）
+                if isinstance(dc, bool) or not isinstance(dc, int) or not (1 <= dc <= 40):
+                    raise ValueError("dc 必须是 1-40 的整数")
+            return ability_check(character, args["skill_or_ability"], dc)
         if name == "attack":
             return attack(character, args["target"], args.get("weapon_dice", "1d8"))
         if name == "encounter":

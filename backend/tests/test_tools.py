@@ -704,3 +704,17 @@ def test_lucky_reroll_recomputes_success_with_dc():
         assert r["lucky_reroll"] is True
         assert r["total"] == 20 + mod
         assert r["success"] is True, f"重掷后 total {20+mod} >= 10 应成功，实际 {r['success']}"
+
+
+def test_ability_check_dc_range_enforced():
+    """dc 越界/非整数/布尔被拒绝（security MEDIUM 修复）。"""
+    from app.tools import execute_tool
+    from app.character import create_character
+
+    c = create_character("DR", "Human", "Rogue", chosen_skills=["Stealth", "Perception"])
+    for bad in (0, 41, -5, 999, "15", True, 3.5):
+        r = execute_tool("ability_check", {"skill_or_ability": "Perception", "dc": bad}, c)
+        assert isinstance(r, dict) and "error" in r, f"dc={bad!r} 应被拒绝"
+    # 合法 dc 正常
+    r = execute_tool("ability_check", {"skill_or_ability": "Perception", "dc": 10}, c)
+    assert r["dc"] == 10 and r["success"] in (True, False)
