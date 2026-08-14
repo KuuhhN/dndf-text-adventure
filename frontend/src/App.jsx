@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Component, useEffect, useRef, useState } from "react";
 import "./App.css";
 
 const API = "http://localhost:8000";
@@ -97,7 +97,7 @@ const t = (k) => ZH[k] || k; // 未知名称回退英文
 const zhProf = (p) => (p.startsWith("Tool: ") ? `工具：${t(p.replace("Tool: ", ""))}` : t(p.replace("Skill: ", "")));
 
 // 错误边界：任何渲染/事件错误显示在页面而非白屏，便于定位与反馈
-class ErrorBoundary extends React.Component {
+class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
     this.state = { error: null };
