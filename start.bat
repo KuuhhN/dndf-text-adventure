@@ -1,37 +1,41 @@
 @echo off
-chcp 65001 >nul
-title DNDF æ–‡å­—å†’é™© - ä¸€é”®å¯åŠ¨
+title DNDF ÎÄ×ÖÃ°ÏÕ - Ò»¼üÆô¶¯
 echo ============================================
-echo   DNDF æ–‡å­—å†’é™© - ä¸€é”®å¯åŠ¨
+echo   DNDF ÎÄ×ÖÃ°ÏÕ - Ò»¼üÆô¶¯
 echo ============================================
 echo.
 
 cd /d %~dp0
 
-REM --- 1. æ£€æŸ¥æ•°æ®ï¼ˆé¦–æ¬¡è‡ªåŠ¨å¯¼å…¥ï¼‰ ---
+REM --- 1. ¼ì²éÊý¾Ý£¨Ê×´Î×Ô¶¯µ¼Èë£© ---
 if not exist backend\data\dndf.db (
-    echo [1/3] é¦–æ¬¡è¿è¡Œï¼Œå¯¼å…¥ 5e è§„åˆ™æ•°æ®...
+    echo [1/3] Ê×´ÎÔËÐÐ£¬µ¼Èë 5e ¹æÔòÊý¾Ý...
     cd backend
-    python scripts\import_5e.py || (echo æ•°æ®å¯¼å…¥å¤±è´¥ & pause & exit /b 1)
+    python scripts\import_5e.py || (echo Êý¾Ýµ¼ÈëÊ§°Ü & pause & exit /b 1)
     cd ..
 ) else (
-    echo [1/3] è§„åˆ™æ•°æ®å·²å°±ç»ª
+    echo [1/3] ¹æÔòÊý¾ÝÒÑ¾ÍÐ÷
 )
 
-REM --- 2. å¯åŠ¨åŽç«¯ ---
-echo [2/3] å¯åŠ¨åŽç«¯ http://localhost:8000 ...
-start "DNDF åŽç«¯" cmd /k "cd /d %~dp0backend && python -m uvicorn app.main:app --port 8000"
+REM --- 2. Æô¶¯ºó¶Ë ---
+echo [2/3] Æô¶¯ºó¶Ë http://localhost:8000 ...
+start "DNDF ºó¶Ë" cmd /k "cd /d %~dp0backend && python -m uvicorn app.main:app --port 8000"
 
-REM --- 3. å¯åŠ¨å‰ç«¯ ---
-echo [3/3] å¯åŠ¨å‰ç«¯ http://localhost:5173 ...
+REM --- 3. Æô¶¯Ç°¶Ë ---
+echo [3/3] Æô¶¯Ç°¶Ë http://localhost:5173 ...
 if not exist frontend\node_modules (
-    echo      é¦–æ¬¡è¿è¡Œï¼Œå®‰è£…å‰ç«¯ä¾èµ–...
+    echo      Ê×´ÎÔËÐÐ£¬°²×°Ç°¶ËÒÀÀµ...
     cd frontend && call npm install && cd ..
 )
-start "DNDF å‰ç«¯" cmd /k "cd /d %~dp0frontend && npm run dev"
+start "DNDF Ç°¶Ë" cmd /k "cd /d %~dp0frontend && npm run dev"
+
+REM --- 4. µÈ´ýÇ°¶Ë¾ÍÐ÷ºó×Ô¶¯´ò¿ªä¯ÀÀÆ÷ ---
+echo [4/4] ´ò¿ªä¯ÀÀÆ÷...
+timeout /t 6 /nobreak >nul
+start "" http://localhost:5173
 
 echo.
-echo æµè§ˆå™¨æ‰“å¼€ http://localhost:5173 å¼€å§‹å†’é™©ï¼
-echo å…³é—­æœ¬çª—å£ä¸ä¼šåœæ­¢æ¸¸æˆï¼›ç»“æŸæ¸¸æˆè¯·å…³é—­ä¸¤ä¸ªæœåŠ¡çª—å£ã€‚
+echo ä¯ÀÀÆ÷ÒÑ´ò¿ª http://localhost:5173 ¿ªÊ¼Ã°ÏÕ£¡
+echo ¹Ø±Õ±¾´°¿Ú²»»áÍ£Ö¹ÓÎÏ·£»½áÊøÓÎÏ·Çë¹Ø±ÕÁ½¸ö·þÎñ´°¿Ú¡£
 echo.
 pause
