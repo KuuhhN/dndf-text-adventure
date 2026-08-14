@@ -69,7 +69,7 @@ async def game_chat(session_id: str, message: str) -> AsyncIterator[dict]:
             # 过滤 LLM 幻觉写进文本的假工具调用（如 "call attack(...)"）
             content = h["content"]
             if "call " in content and any(
-                f"call {t}(" in content for t in ("attack", "ability_check", "roll_dice", "enemy_attack", "encounter", "lookup")
+                f"call {t}(" in content for t in ("attack", "ability_check", "roll_dice", "enemy_attack", "encounter", "lookup", "use_feature")
             ):
                 continue
             messages.append({"role": h["role"], "content": content})

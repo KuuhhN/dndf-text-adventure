@@ -564,7 +564,7 @@ function formatTool(evt) {
       return `${r.removed ? "🗑️ 已移除" : "🎒 已消耗"} ${r.item.name}${r.item.quantity ? `（剩余 ×${r.item.quantity}）` : ""}`;
     case "use_feature": {
       const d = r.healed ? `恢复 ${r.healed} HP` : r.damage !== undefined ? (r.saved ? "敌人躲过了吐息" : `造成 ${r.damage} 伤害`) : r.rage ? "进入狂暴！" : r.note || "";
-      return `⚡ ${r.feature_zh}（${r.action}）：${d}${r.remaining !== undefined ? ` · 剩余 ${r.remaining} 次` : ""}`;
+      return `⚡ ${r.feature_zh}（${r.action}）：${d}${r.remaining != null ? ` · 剩余 ${r.remaining} 次` : ""}`;
     }
     default:
       return JSON.stringify(r);

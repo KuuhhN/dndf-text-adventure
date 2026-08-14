@@ -116,7 +116,8 @@ def get_class_detail(name: str) -> dict | None:
         item = json.loads(r["data"])
         lv = item.get("level")
         level_features[lv] = [
-            {"index": f["index"], "name": f["name"], **{k: v for k, v in _trait_detail(f["index"]).items() if k in ("desc",)}}
+            {"index": f["index"], "name": f["name"],
+             **{k: v for k, v in _trait_detail(f["index"]).items() if k in ("desc", "summary", "zh")}}
             for f in item.get("features", [])
         ]
     from .character import class_skill_choices

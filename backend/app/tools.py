@@ -67,10 +67,6 @@ def _monster_ac(monster: dict) -> int:
     return ac
 
 
-def _combat(character: dict) -> dict:
-    return character.setdefault("combat", {"enemies": []})
-
-
 def _quests(character: dict) -> list[dict]:
     return character.setdefault("quests", [])
 
@@ -127,8 +123,9 @@ def post_quest(
 
 
 def encounter(character: dict, monsters: list[str]) -> dict:
-    """把怪物拉入战斗。返回每个怪物的 HP/AC。"""
+    """把怪物拉入战斗。返回每个怪物的 HP/AC。新战斗开始，狂暴状态重置。"""
     combat = _combat(character)
+    combat["rage"] = False
     added = []
     for name in monsters:
         monster = db.get_monster(name)
@@ -183,12 +180,14 @@ def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
             result["rage_bonus"] = True
         enemy["hp"] -= result["damage"]
         result["target_hp"] = enemy["hp"]
-        if enemy["hp"] <= 0:  # 击杀：移除 + 经验
+        if enemy["hp"] <= 0:  # 击杀：移除（按对象，同名不误杀）+ 经验
             result["killed"] = True
             monster = db.get_monster(target)
             result["xp_gained"] = monster.get("xp", 0) if monster else 0
             character["xp"] = character.get("xp", 0) + result["xp_gained"]
-            combat["enemies"] = [e for e in combat["enemies"] if e["name"] != target]
+            combat["enemies"] = [e for e in combat["enemies"] if e is not enemy]
+            if not combat["enemies"]:
+                combat["rage"] = False  # 战斗结束，狂暴消退
             leveled = check_level_up(character)
             if leveled:
                 result["level_up"] = leveled
@@ -342,8 +341,8 @@ def use_feature(character: dict, feature: str, target: str = "") -> dict:
               "action": spec["action"], "summary": spec["summary"]}
 
     if spec["effect"] == "heal":
-        if spec.get("pool"):  # 圣疗：从池中扣
-            amt = min(spec["pool"], character["max_hp"] - character["current_hp"])
+        if spec.get("pool"):  # 圣疗：从池中扣（按剩余池量，不能超支）
+            amt = min(rec["remaining"], character["max_hp"] - character["current_hp"])
             character["current_hp"] += amt
             result["healed"] = amt
         else:
@@ -379,7 +378,9 @@ def use_feature(character: dict, feature: str, target: str = "") -> dict:
             xp = monster.get("xp", 0) if monster else 0
             character["xp"] = character.get("xp", 0) + xp
             result["xp_gained"] = xp
-            combat["enemies"] = [e for e in combat["enemies"] if e["name"] != enemy["name"]]
+            combat["enemies"] = [e for e in combat["enemies"] if e is not enemy]  # 按对象移除，同名敌人不误杀
+            if not combat["enemies"]:
+                combat["rage"] = False  # 战斗结束，狂暴消退
             leveled = check_level_up(character)
             if leveled:
                 result["level_up"] = leveled

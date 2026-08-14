@@ -345,3 +345,73 @@ def test_use_feature_lay_on_hands_pool():
         if "error" in r:
             break
     assert "error" in r
+
+
+def test_lay_on_hands_pool_never_overdraws():
+    """圣疗池剩 2 点时最多治疗 2 点（回归：之前固定按 5 点池超支）。"""
+    from app.character import create_character
+    from app.tools import use_feature
+
+    c = create_character("P", "Human", "Paladin", chosen_skills=["Athletics"])
+    c["current_hp"] = 1
+    use_feature(c, "lay-on-hands")  # 第一次：满缺口，耗 5
+    assert c["combat"]["feature_uses"]["lay-on-hands"]["remaining"] == 0
+    # 重置池为 2，缺口 5：只能治 2
+    c["combat"]["feature_uses"]["lay-on-hands"]["remaining"] = 2
+    c["current_hp"] = 1
+    r = use_feature(c, "lay-on-hands")
+    assert r["healed"] == 2
+    assert c["current_hp"] == 3
+    assert c["combat"]["feature_uses"]["lay-on-hands"]["remaining"] == 0
+
+
+def test_rage_resets_when_combat_ends():
+    """狂暴在战斗结束（敌人清空）和新遭遇时重置（回归：之前永久生效）。"""
+    from app.character import create_character
+    from app.tools import use_feature, attack, encounter
+
+    c = create_character("B", "Human", "Barbarian", chosen_skills=["Athletics"])
+    encounter(c, ["Goblin"])
+    use_feature(c, "rage")
+    assert c["combat"]["rage"] is True
+    # 连续攻击直到击杀（敌方 Goblin 不反击也行，直接调用 attack）
+    for _ in range(20):
+        attack(c, "Goblin")
+        if not c["combat"]["enemies"]:
+            break
+    assert c["combat"]["enemies"] == []
+    assert c["combat"]["rage"] is False, "战斗结束狂暴应消退"
+    # 新遭遇再次重置
+    encounter(c, ["Goblin"])
+    assert c["combat"]["rage"] is False
+
+
+def test_same_name_enemies_killed_one_by_one():
+    """同名敌人（两只哥布林）击杀一只不应移除另一只（回归：之前按 name 全移除）。"""
+    from app.character import create_character
+    from app.tools import attack, encounter
+
+    c = create_character("F", "Human", "Fighter", chosen_skills=["Athletics"])
+    encounter(c, ["Goblin", "Goblin"])
+    assert len(c["combat"]["enemies"]) == 2
+    kills = 0
+    for _ in range(30):
+        if not c["combat"]["enemies"]:
+            break  # 两只都杀掉即停（attack 会自动拉新怪，不能继续打）
+        r = attack(c, "Goblin")
+        if r["hit"] and r["target_hp"] <= 0:
+            kills += 1
+    assert kills == 2, f"应恰好击杀 2 只同名哥布林，实际 {kills}"
+    assert c["combat"]["enemies"] == []
+
+
+def test_rogue_unlocks_cunning_action_at_level_2():
+    """盗贼升到 2 级解锁狡诈行动（回归：之前 init 只在创建时跑一次）。"""
+    from app.character import create_character, check_level_up
+
+    c = create_character("R", "Human", "Rogue", chosen_skills=["Stealth"])
+    assert "cunning-action" not in c["combat"]["feature_uses"]
+    c["xp"] = 300  # 1->2 阈值
+    check_level_up(c)
+    assert c["level"] == 2
+    assert "cunning-action" in c["combat"]["feature_uses"]

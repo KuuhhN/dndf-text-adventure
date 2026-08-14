@@ -233,4 +233,7 @@ def check_level_up(character: dict) -> list[int]:
             + (prof_bonus if skill in proficient else 0)
             for skill in SKILL_ABILITIES
         }
+        # 升级可能解锁新能力（如盗贼 2 级狡诈行动）
+        from .tools import init_feature_uses
+        init_feature_uses(character)
     return leveled
