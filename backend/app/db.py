@@ -105,10 +105,10 @@ def get_class_detail(name: str) -> dict | None:
     cls = get_class(name)
     if not cls:
         return None
-    # 等级特性：levels 表（class index 在 data JSON 内）
+    # 等级特性：levels 表（class index 在 data JSON 内；level 列为 TEXT，必须 CAST 数值比较）
     with _conn() as c:
         rows = c.execute(
-            "SELECT data FROM levels WHERE json_extract(data, '$.class.index') = ? AND level <= 2 ORDER BY level",
+            "SELECT data FROM levels WHERE json_extract(data, '$.class.index') = ? AND CAST(level AS INTEGER) <= 2 ORDER BY CAST(level AS INTEGER)",
             (cls.get("index"),),
         ).fetchall()
     level_features = {}

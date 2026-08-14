@@ -80,6 +80,17 @@ const ZH = {
   "Step of the Wind": "御风步", "Thieves' Cant": "盗贼黑话",
   "Unarmored Movement": "无甲移动",
   "Wild Shape (CR 1/4 or below, no flying or swim speed)": "荒野变形（CR 1/4以下）",
+  // 职业熟练项（护甲/武器/工具）
+  "All armor": "全部护甲", "Light Armor": "轻甲", "Medium Armor": "中甲",
+  "Shields": "盾牌", "Simple Weapons": "简易武器", "Martial Weapons": "军用武器",
+  "Clubs": "木棒", "Daggers": "匕首", "Darts": "飞镖", "Javelins": "标枪",
+  "Maces": "钉头锤", "Quarterstaffs": "长棍", "Rapiers": "细剑",
+  "Shortswords": "短剑", "Sickles": "镰刀", "Slings": "投石索", "Spears": "长矛",
+  "Longswords": "长剑", "Hand crossbows": "手弩", "Crossbows, light": "轻弩",
+  "Thieves' Tools": "盗贼工具", "Saving Throw: STR": "豁免：力量",
+  "Saving Throw: DEX": "豁免：敏捷", "Saving Throw: CON": "豁免：体质",
+  "Saving Throw: INT": "豁免：智力", "Saving Throw: WIS": "豁免：感知",
+  "Saving Throw: CHA": "豁免：魅力",
 };
 const t = (k) => ZH[k] || k; // 未知名称回退英文
 
@@ -395,6 +406,11 @@ function CreateWizard({ races, classes, onSubmit }) {
                     生命骰 d{classDetail.hit_die} · 豁免 {classDetail.saving_throws.map(t).join("/")}
                     {classDetail.skill_choices?.choose ? ` · 可选技能 ${classDetail.skill_choices.choose} 个` : ""}
                   </div>
+                  {classDetail.proficiencies?.length > 0 && (
+                    <div className="detail-meta">
+                      熟练：{classDetail.proficiencies.map(t).join("、")}
+                    </div>
+                  )}
                   <ul className="detail-traits">
                     {Object.entries(classDetail.level_features).flatMap(([lv, feats]) =>
                       feats.map((f) => (
