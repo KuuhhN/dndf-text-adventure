@@ -548,6 +548,23 @@ button.primary:disabled {
   font-weight: 700;
 }
 
+.chip.taken {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #e0d4b4;
+}
+
+.bg-skills-note {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #f5ecd7;
+  border: 1px dashed #b08a3e;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #6b4f2a;
+  font-family: "KaiTi", "STKaiti", serif;
+}
+
 /* ---- 游戏主界面 ---- */
 .game {
   display: grid;

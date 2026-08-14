@@ -298,7 +298,7 @@ function CreateWizard({ races, classes, onSubmit }) {
   const [form, setForm] = useState({
     name: "", race: "", class_name: "", method: "point-buy",
     abilities: { STR: 8, DEX: 8, CON: 8, INT: 8, WIS: 8, CHA: 8 },
-    chosen_skills: [], background: "", feat: "",
+    chosen_skills: [], skilled_skills: [], background: "", feat: "",
   });
   const [raceDetail, setRaceDetail] = useState(null);
   const [classDetail, setClassDetail] = useState(null);
@@ -332,8 +332,10 @@ function CreateWizard({ races, classes, onSubmit }) {
   const canNext =
     (step === 1 && form.race) || (step === 2 && form.class_name) ||
     (step === 3 && (form.method === "rolled" ? rolled : spent() <= PB_BUDGET)) ||
-    (step === 4 && form.chosen_skills.length === (classDetail?.skill_choices?.choose ?? 0)) ||
-    (step === 5 && form.background) || (step === 6 && form.name.trim());
+    (step === 4 && form.background) ||
+    (step === 5 && form.chosen_skills.length === (classDetail?.skill_choices?.choose ?? 0) &&
+      (form.feat !== "Skilled" || form.skilled_skills.length === 3)) ||
+    (step === 6 && form.name.trim());
 
   function spent() {
     return Object.values(form.abilities).reduce((s, v) => s + (PB_COST[v] ?? 0), 0);
@@ -355,7 +357,13 @@ function CreateWizard({ races, classes, onSubmit }) {
 
   const next = () => setStep(step + 1);
   const prev = () => setStep(Math.max(1, step - 1));
-  const steps = ["种族", "职业", "属性", "技能", "专长·背景", "名字"];
+  const steps = ["种族", "职业", "属性", "专长·背景", "技能", "名字"];
+  // 背景已提供的技能（技能页只读展示）
+  const bgSkills = (backgrounds.find((b) => b.name === form.background)?.proficiencies || [])
+    .map((p) => p.replace("Skill: ", ""))
+    .filter((s) => SKILL_HINTS[s]);
+  const bgFeat = backgrounds.find((b) => b.name === form.background)?.feat;
+  const hasSkilled = form.feat === "Skilled";
 
   return (
     <div className="wizard multi">
@@ -481,6 +489,35 @@ function CreateWizard({ races, classes, onSubmit }) {
         )}
 
         {step === 4 && (
+          <div className="feat-panel">
+            <h3>背景（提供技能熟练 + 专长）</h3>
+            <div className="bg-list">
+              {backgrounds.map((b) => (
+                <button key={b.index} className={`bg-card ${form.background === b.name ? "on" : ""}`} onClick={() => {
+                  set("background", b.name);
+                  // 背景赠送专长与已选专长重复时自动取消选择
+                  if (form.feat === b.feat) set("feat", "");
+                }}>
+                  <b>{t(b.name)}</b>
+                  <span>赠送专长：{t(b.feat)}</span>
+                  <span>技能：{b.proficiencies.map((p) => t(p.replace("Skill: ", ""))).join("、")}</span>
+                </button>
+              ))}
+            </div>
+            <h3>1 级专长（可选）</h3>
+            <div className="bg-list">
+              {feats.filter((f) => f.name !== bgFeat).map((f) => (
+                <button key={f.index} className={`bg-card ${form.feat === f.name ? "on" : ""}`} onClick={() => set("feat", form.feat === f.name ? "" : f.name)}>
+                  <b>{t(f.name)}</b>
+                  <span className="feat-sum">{f.summary || (f.desc ? f.desc.slice(0, 60) + "…" : "")}</span>
+                </button>
+              ))}
+            </div>
+            <p className="pb-note">技能熟练专长会在下一步让你额外自选 3 个技能。</p>
+          </div>
+        )}
+
+        {step === 5 && (
           <div className="skill-pick big">
             <div className="skill-pick-title">
               选择熟练技能（选 {classDetail?.skill_choices?.choose ?? 0} 个）
@@ -502,38 +539,41 @@ function CreateWizard({ races, classes, onSubmit }) {
                 </label>
               ))}
             </div>
-            <p className="pb-note">背景也会提供额外技能熟练（下一步选择）。</p>
-          </div>
-        )}
-
-        {step === 5 && (
-          <div className="feat-panel">
-            <h3>背景（提供技能熟练 + 专长）</h3>
-            <div className="bg-list">
-              {backgrounds.map((b) => (
-                <button key={b.index} className={`bg-card ${form.background === b.name ? "on" : ""}`} onClick={() => {
-                  set("background", b.name);
-                  // 背景赠送专长与已选专长重复时自动取消选择
-                  if (form.feat === b.feat) set("feat", "");
-                }}>
-                  <b>{t(b.name)}</b>
-                  <span>赠送专长：{t(b.feat)}</span>
-                  <span>技能：{b.proficiencies.map((p) => t(p.replace("Skill: ", ""))).join("、")}</span>
-                </button>
-              ))}
-            </div>
-            <h3>1 级专长（可选）</h3>
-            <div className="bg-list">
-              {(() => {
-                const bgFeat = backgrounds.find((b) => b.name === form.background)?.feat;
-                return feats.filter((f) => f.name !== bgFeat).map((f) => (
-                  <button key={f.index} className={`bg-card ${form.feat === f.name ? "on" : ""}`} onClick={() => set("feat", form.feat === f.name ? "" : f.name)}>
-                    <b>{t(f.name)}</b>
-                    <span className="feat-sum">{f.summary || (f.desc ? f.desc.slice(0, 60) + "…" : "")}</span>
-                  </button>
-                ));
-              })()}
-            </div>
+            {bgSkills.length > 0 && (
+              <div className="bg-skills-note">
+                🏷️ 背景「{t(form.background)}」已提供：{bgSkills.map(t).join("、")}（自动熟练，无需选择）
+              </div>
+            )}
+            {hasSkilled && (
+              <>
+                <div className="skill-pick-title">
+                  🎓 技能熟练专长：再选 3 个技能（从所有技能中选）
+                </div>
+                <div className="skill-pick-opts">
+                  {Object.keys(SKILL_HINTS).map((s) => {
+                    const taken = form.chosen_skills.includes(s) || bgSkills.includes(s);
+                    const picked = form.skilled_skills.includes(s);
+                    return (
+                      <label key={s} className={`chip ${picked ? "on" : ""} ${taken ? "taken" : ""}`}>
+                        <input
+                          type="checkbox"
+                          disabled={taken}
+                          checked={picked}
+                          onChange={() => {
+                            const next = picked
+                              ? form.skilled_skills.filter((x) => x !== s)
+                              : [...form.skilled_skills, s].slice(0, 3);
+                            set("skilled_skills", next);
+                          }}
+                        />
+                        {t(s)}
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="pb-note">已选 {form.skilled_skills.length}/3（灰色为已熟练技能，不可重复选）</p>
+              </>
+            )}
           </div>
         )}
 

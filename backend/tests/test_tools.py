@@ -557,3 +557,36 @@ def test_resistance_halves_damage():
         r = enemy_attack(c, "Goblin")
     assert r.get("resisted") is True
     assert r["damage"] == 3, f"6 伤害减半应 3，实际 {r['damage']}"
+
+
+def test_skilled_feat_user_picked_skills():
+    """技能熟练专长：用户自选的 3 个技能生效（回归：之前引擎自动选）。"""
+    from app.character import create_character
+
+    c = create_character("SP", "Human", "Fighter", feat="Skilled",
+                         chosen_skills=["Athletics", "Perception"],
+                         skilled_skills=["Stealth", "Arcana", "Deception"])
+    for s in ["Stealth", "Arcana", "Deception"]:
+        assert s in c["proficient_skills"], f"{s} 应熟练"
+    assert c["skills"]["Stealth"] == c["modifiers"]["DEX"] + 2
+
+
+def test_skilled_feat_rejects_duplicate_pick():
+    """技能熟练专长：选已熟练技能视为无效（数量不足 3 拒绝）。"""
+    import pytest as pt
+    from app.character import create_character
+
+    with pt.raises(ValueError):
+        create_character("SD", "Human", "Fighter", feat="Skilled",
+                         chosen_skills=["Athletics", "Perception"],
+                         skilled_skills=["Athletics", "Stealth", "Arcana"])  # Athletics 已熟练
+
+
+def test_background_skills_auto_granted():
+    """背景技能自动熟练（罪犯→巧手/潜行），不占职业选择名额。"""
+    from app.character import create_character
+
+    c = create_character("BG", "Human", "Rogue", background="Criminal",
+                         chosen_skills=["Athletics", "Perception"])
+    assert "Sleight of Hand" in c["proficient_skills"], "背景技能应自动熟练"
+    assert "Stealth" in c["proficient_skills"], "背景技能应自动熟练"

@@ -103,6 +103,7 @@ def create_character(
     abilities: dict | None = None,
     background: str = "",
     feat: str = "",
+    skilled_skills: list[str] | None = None,
 ) -> dict:
     race = db.get_race(race_name)
     cls = db.get_class(class_name)
@@ -181,11 +182,18 @@ def create_character(
         for skill in SKILL_ABILITIES
     }
 
-    # 技能熟练专长（Skilled）：额外 3 个未熟练技能（取修正最高的 3 个）
+    # 技能熟练专长（Skilled）：额外 3 个技能熟练（优先玩家自选，未传则取修正最高的）
     if "Skilled" in feats:
-        candidates = [s for s in SKILL_ABILITIES if s not in proficient]
-        candidates.sort(key=lambda s: ability_modifier(abilities[SKILL_ABILITIES[s]]), reverse=True)
-        for s in candidates[:3]:
+        if skilled_skills:
+            # 校验：必须是技能名、未已熟练、最多 3 个
+            picked = [s for s in skilled_skills if s in SKILL_ABILITIES and s not in proficient][:3]
+            if len(picked) < min(3, len(skilled_skills)):
+                raise ValueError("技能熟练专长的技能选择无效（需选 3 个未熟练技能）")
+        else:
+            candidates = [s for s in SKILL_ABILITIES if s not in proficient]
+            candidates.sort(key=lambda s: ability_modifier(abilities[SKILL_ABILITIES[s]]), reverse=True)
+            picked = candidates[:3]
+        for s in picked:
             proficient.add(s)
             skills[s] += prof_bonus
 

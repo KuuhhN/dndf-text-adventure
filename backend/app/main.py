@@ -33,6 +33,7 @@ class CreateCharacterRequest(BaseModel):
     abilities: dict | None = None
     background: str = ""
     feat: str = ""
+    skilled_skills: list[str] = []
 
 
 @app.get("/api/health")
@@ -97,7 +98,7 @@ def create_character_api(req: CreateCharacterRequest):
     try:
         character = create_character(
             req.name, req.race, req.class_name, req.method, req.chosen_skills,
-            req.abilities, req.background, req.feat,
+            req.abilities, req.background, req.feat, req.skilled_skills,
         )
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
