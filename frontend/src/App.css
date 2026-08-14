@@ -111,7 +111,7 @@ body {
 }
 
 .step-hint {
-  width: 100%;
+  flex-basis: 100%;
   text-align: center;
   margin: 10px 0 0;
   color: #a03020;
