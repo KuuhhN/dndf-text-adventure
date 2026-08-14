@@ -415,3 +415,15 @@ def test_rogue_unlocks_cunning_action_at_level_2():
     check_level_up(c)
     assert c["level"] == 2
     assert "cunning-action" in c["combat"]["feature_uses"]
+
+
+def test_execute_tool_malformed_args_returns_error():
+    """LLM 传畸形参数（数字而非字符串）返回 error 不抛异常（回归：AttributeError 漏捕）。"""
+    from app.tools import execute_tool
+
+    r = execute_tool("roll_dice", {"dice": 123}, None)
+    assert "error" in r, f"roll_dice 数字参数应转 error，实际 {r}"
+    r2 = execute_tool("ability_check", {"skill_or_ability": 42}, None)
+    assert "error" in r2
+    r3 = execute_tool("attack", {"target": 7}, None)
+    assert "error" in r3

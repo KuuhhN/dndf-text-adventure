@@ -580,7 +580,7 @@ def execute_tool(name: str, args: dict, character: dict | None = None) -> dict:
         if name == "lookup":
             return lookup(args["kind"], args["name"])
         return {"error": f"未知工具: {name}"}
-    except (ValueError, KeyError, TypeError) as e:  # LLM 畸形参数（类型错）同样转错误结果
+    except (ValueError, KeyError, TypeError, AttributeError) as e:  # LLM 畸形参数（含 int 无属性等）同样转错误结果
         return {"error": str(e)}
 
 

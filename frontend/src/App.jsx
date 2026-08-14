@@ -186,42 +186,45 @@ function App() {
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buf = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const lines = buf.split("\n");
-      buf = lines.pop();
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const payload = line.slice(6);
-        if (payload === "[DONE]") continue;
-        let evt;
-        try {
-          evt = JSON.parse(payload);
-        } catch {
-          continue; // 容错：坏行跳过，不中断流解析
-        }
-        if (evt.type === "delta") {
-          setMessages((prev) => {
-            const next = [...prev];
-            next[next.length - 1] = {
-              ...next[next.length - 1],
-              content: next[next.length - 1].content + evt.text,
-            };
-            return next;
-          });
-        } else if (evt.type === "tool") {
-          setMessages((prev) => [...prev, { role: "tool", content: formatTool(evt) }]);
-          // 工具副作用（HP/敌人/经验）后刷新角色卡
-          const d = await (await fetch(`${API}/api/session/${sessionId}`)).json();
-          setSession((prev) => ({ ...prev, character: d.character }));
-        } else if (evt.type === "error") {
-          setMessages((prev) => [...prev, { role: "error", content: evt.text }]);
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const payload = line.slice(6);
+          if (payload === "[DONE]") continue;
+          let evt;
+          try {
+            evt = JSON.parse(payload);
+          } catch {
+            continue; // 容错：坏行跳过，不中断流解析
+          }
+          if (evt.type === "delta") {
+            setMessages((prev) => {
+              const next = [...prev];
+              next[next.length - 1] = {
+                ...next[next.length - 1],
+                content: next[next.length - 1].content + evt.text,
+              };
+              return next;
+            });
+          } else if (evt.type === "tool") {
+            setMessages((prev) => [...prev, { role: "tool", content: formatTool(evt) }]);
+            // 工具副作用（HP/敌人/经验）后刷新角色卡
+            const d = await (await fetch(`${API}/api/session/${sessionId}`)).json();
+            setSession((prev) => ({ ...prev, character: d.character }));
+          } else if (evt.type === "error") {
+            setMessages((prev) => [...prev, { role: "error", content: evt.text }]);
+          }
         }
       }
+    } finally {
+      setBusy(false); // 网络中断/异常也复位按钮，不卡死
     }
-    setBusy(false);
   }
 
   function send() {
