@@ -30,6 +30,9 @@ class CreateCharacterRequest(BaseModel):
     class_name: str
     method: str = "standard"
     chosen_skills: list[str] = []
+    abilities: dict | None = None
+    background: str = ""
+    feat: str = ""
 
 
 @app.get("/api/health")
@@ -47,6 +50,40 @@ def classes():
     return {"classes": db.list_classes()}
 
 
+@app.get("/api/races/{name}")
+def race_detail(name: str):
+    d = db.get_race_detail(name)
+    if not d:
+        return JSONResponse({"error": "未知种族"}, status_code=404)
+    return d
+
+
+@app.get("/api/classes/{name}")
+def class_detail(name: str):
+    d = db.get_class_detail(name)
+    if not d:
+        return JSONResponse({"error": "未知职业"}, status_code=404)
+    return d
+
+
+@app.get("/api/feats")
+def feats():
+    return {"feats": db.get_feats()}
+
+
+@app.get("/api/backgrounds")
+def backgrounds():
+    return {"backgrounds": db.get_backgrounds()}
+
+
+@app.get("/api/roll-abilities")
+def roll_abilities_preview():
+    """4d6 取 3 高 ×6（预览用，创建时后端会正式掷）。"""
+    from .character import ABILITY_ORDER, roll_abilities
+
+    return {"abilities": dict(zip(ABILITY_ORDER, roll_abilities()))}
+
+
 @app.get("/api/class/{class_name}/skill-choices")
 def skill_choices(class_name: str):
     from .character import class_skill_choices
@@ -59,7 +96,8 @@ def create_character_api(req: CreateCharacterRequest):
     """创建角色并新建会话，返回角色卡 + session_id。"""
     try:
         character = create_character(
-            req.name, req.race, req.class_name, req.method, req.chosen_skills
+            req.name, req.race, req.class_name, req.method, req.chosen_skills,
+            req.abilities, req.background, req.feat,
         )
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)

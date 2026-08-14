@@ -62,6 +62,341 @@ body {
   color: #a08a5f;
 }
 
+/* ---- BG3 式多步向导 ---- */
+.wizard.multi {
+  max-width: 760px;
+}
+
+.steps {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 6px 0 18px;
+  flex-wrap: wrap;
+}
+
+.step-dot {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #a08a5f;
+  background: #f2e4c0;
+  border: 1px solid #c9a86a;
+  border-radius: 14px;
+  padding: 4px 10px;
+}
+
+.step-dot.on {
+  background: #e3c06a;
+  color: #3a2a14;
+  font-weight: 700;
+  border-color: #a8842f;
+}
+
+.step-dot.done {
+  color: #5d7a3a;
+}
+
+.step-body {
+  min-height: 300px;
+}
+
+.step-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.ghost-btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid #a8842f;
+  background: none;
+  color: #7a5c33;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+/* 种族/职业选择 */
+.pick-grid {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 16px;
+}
+
+.pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.pick-card {
+  text-align: left;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #c9a86a;
+  background: #f2e4c0;
+  color: #3a2a14;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.pick-card:hover {
+  border-color: #a8842f;
+  background: #f5ecd7;
+}
+
+.pick-card.on {
+  border-color: #a8842f;
+  background: #e3c06a;
+  box-shadow: inset 0 0 0 1px #a8842f;
+}
+
+.pick-detail {
+  background: #f5ecd7;
+  border: 1px solid #c9a86a;
+  border-radius: 8px;
+  padding: 14px 16px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.pick-detail h3 {
+  font-family: "KaiTi", "STKaiti", serif;
+  color: #3a2a14;
+  margin-bottom: 4px;
+}
+
+.detail-meta {
+  font-size: 13px;
+  color: #7a5c33;
+  margin-bottom: 10px;
+}
+
+.detail-empty {
+  color: #a08a5f;
+  text-align: center;
+  padding: 60px 0;
+  font-family: "KaiTi", "STKaiti", serif;
+}
+
+.detail-traits {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detail-traits li {
+  background: #f2e4c0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  border-left: 3px solid #a8842f;
+}
+
+.detail-traits b {
+  font-family: "KaiTi", "STKaiti", serif;
+  font-size: 14px;
+  color: #3a2a14;
+}
+
+.detail-traits p {
+  font-size: 12px;
+  color: #6b4f2a;
+  line-height: 1.7;
+  margin-top: 3px;
+}
+
+/* 属性加点 */
+.pb-panel {
+  background: #f5ecd7;
+  border: 1px solid #c9a86a;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.pb-mode {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #4a3620;
+}
+
+.pb-mode input {
+  accent-color: #b8912f;
+}
+
+.pb-reroll {
+  padding: 5px 12px;
+  border-radius: 14px;
+  border: 1px solid #a8842f;
+  background: #e3c06a;
+  color: #3a2a14;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.pb-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.pb-ability {
+  background: #f2e4c0;
+  border: 1px solid #c9a86a;
+  border-radius: 8px;
+  text-align: center;
+  padding: 10px 6px;
+}
+
+.pb-name {
+  font-size: 13px;
+  color: #7a5c33;
+  font-weight: 600;
+}
+
+.pb-score {
+  font-size: 26px;
+  font-weight: 700;
+  color: #3a2a14;
+  margin: 4px 0;
+}
+
+.pb-btns {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.pb-btns button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #a8842f;
+  background: #e3c06a;
+  color: #3a2a14;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.pb-btns button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pb-cost {
+  font-size: 12px;
+  color: #8a6a3a;
+}
+
+.pb-total {
+  font-size: 12px;
+  color: #4d7a2f;
+  margin-top: 4px;
+}
+
+.pb-total small {
+  color: #8a6a3a;
+}
+
+.pb-budget {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #4d7a2f;
+  font-weight: 600;
+}
+
+.pb-budget.over {
+  color: #a0342c;
+}
+
+.pb-note {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8a6a3a;
+}
+
+/* 专长/背景 */
+.feat-panel h3 {
+  font-family: "KaiTi", "STKaiti", serif;
+  color: #3a2a14;
+  margin: 14px 0 8px;
+  font-size: 15px;
+}
+
+.bg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.bg-card {
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid #c9a86a;
+  background: #f2e4c0;
+  color: #4a3620;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.bg-card:hover {
+  border-color: #a8842f;
+}
+
+.bg-card.on {
+  border-color: #a8842f;
+  background: #e3c06a;
+}
+
+.bg-card span {
+  font-size: 12px;
+  color: #7a5c33;
+}
+
+/* 最后一步 */
+.final-step {
+  background: #f5ecd7;
+  border: 1px solid #c9a86a;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.final-step label {
+  font-size: 14px;
+  color: #7a5c33;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.final-summary {
+  background: #f2e4c0;
+  border: 1px dashed #a8842f;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  color: #4a3620;
+  line-height: 2;
+}
+
 .home {
   max-width: 420px;
   margin: 0 auto;

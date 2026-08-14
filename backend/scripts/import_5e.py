@@ -22,11 +22,21 @@ TABLES = {
     "monsters": ("5e-SRD-Monsters", ["name", "hit_points", "challenge_rating", "xp"]),
     "equipment": ("5e-SRD-Equipment", ["name", "equipment_category"]),
     "features": ("5e-SRD-Features", ["name", "level"]),
+    "traits": ("5e-SRD-Traits", ["name"]),
     "ability_scores": ("5e-SRD-Ability-Scores", ["name", "full_name"]),
     "skills": ("5e-SRD-Skills", ["name"]),
+    "levels": ("5e-SRD-Levels", ["index", "level"]),
     "backgrounds": ("5e-SRD-Backgrounds", ["name"]),
     "languages": ("5e-SRD-Languages", ["name"]),
     "proficiencies": ("5e-SRD-Proficiencies", ["name"]),
+}
+
+# 2024 SRD（SRD 5.2）补充：专长/背景（官方 CC-BY-4.0，比 2014 版本更全）
+SUPPLEMENT_2024 = {
+    "feats": "5e-SRD-Feats",
+    "backgrounds": "5e-SRD-Backgrounds",
+    "species": "5e-SRD-Species",
+    "subspecies": "5e-SRD-Subspecies",
 }
 
 
@@ -48,7 +58,7 @@ def main():
             cols.append(f'"{field}" TEXT')
         cur.execute(f"CREATE TABLE {table} ({', '.join(cols)})")
         for i, item in enumerate(items):
-            name = item.get("name", "")
+            name = item.get("name") or item.get("index", "")
             data = json.dumps(item, ensure_ascii=False)
             extra = [json.dumps(item.get(f), ensure_ascii=False) if isinstance(item.get(f), (dict, list)) else item.get(f)
                      for f in fields[1:]]
@@ -59,6 +69,25 @@ def main():
             )
         total += len(items)
         print(f"  {table}: {len(items)} 条")
+
+    # 2024 SRD 补充数据（专长/背景用 5.2 版本覆盖——官方发布更全）
+    SRC2024 = os.path.join(BACKEND_DIR, "data", "5e-database", "src", "2024", "en")
+    for table, prefix in SUPPLEMENT_2024.items():
+        path = os.path.join(SRC2024, f"{prefix}.json")
+        if not os.path.exists(path):
+            print(f"  跳过 2024:{table}（{os.path.basename(path)} 不存在）")
+            continue
+        with open(path, encoding="utf-8") as f:
+            items = json.load(f)
+        cur.execute(f"DROP TABLE IF EXISTS {table}")
+        cur.execute("CREATE TABLE {t} (id INTEGER PRIMARY KEY, name TEXT, data TEXT)".format(t=table))
+        for i, item in enumerate(items):
+            cur.execute(
+                f"INSERT INTO {table} (id, name, data) VALUES (?, ?, ?)",
+                [i, item.get("name", ""), json.dumps(item, ensure_ascii=False)],
+            )
+        total += len(items)
+        print(f"  2024:{table}: {len(items)} 条")
     conn.commit()
     conn.close()
     print(f"完成，共导入 {total} 条 -> {DB_PATH}")

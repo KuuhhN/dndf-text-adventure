@@ -25,7 +25,30 @@ const ZH = {
   Goblin: "哥布林", Orc: "兽人", Wolf: "狼", "Giant Rat": "巨鼠", "Giant Spider": "巨型蜘蛛",
   Zombie: "僵尸", Skeleton: "骷髅", Kobold: "狗头人", Bandit: "强盗", Bear: "熊",
   "Dire Wolf": "恐狼", Hobgoblin: "霍布哥布林", Bugbear: "熊地精", "Giant Boar": "巨野猪",
-  "Giant Wolf Spider": "巨型狼蛛", "Goblin Boss": "哥布林首领", "Goblin Archer": "哥布林弓箭手",
+  // 专长（2024 SRD 通译）
+  Alert: "警觉", "Magic Initiate": "魔法入门", "Savage Attacker": "野蛮攻击者",
+  Skilled: "技能熟练", Grappler: "擒抱者", Archery: "箭术", Defense: "防御",
+  "Great Weapon Fighting": "巨武器战斗", "Two Weapon Fighting": "双武器战斗",
+  "Ability Score Improvement": "属性值提升", "Boon of Combat Prowess": "战斗技巧之赐福",
+  "Boon of Dimensional Travel": "位面旅行之赐福", "Boon of Fate": "命运之赐福",
+  "Boon of Irresistible Offense": "不可阻挡攻势之赐福", "Boon of Spell Recall": "法术回想之赐福",
+  "Boon of Truesight": "真视之赐福", "Boon of the Night Spirit": "夜灵之赐福",
+  // 背景
+  Acolyte: "侍僧", Criminal: "罪犯", Sage: "贤者", Soldier: "士兵",
+  // 常见特性
+  Darkvision: "黑暗视觉", "Dwarven Resilience": "矮人韧性", Stonecunning: "岩石智慧",
+  "Dwarven Combat Training": "矮人战斗训练", "Tool Proficiency": "工具熟练",
+  "Fighting Style": "战斗风格", "Second Wind": "二次呼吸", Rage: "狂暴",
+  "Unarmored Defense": "无甲防御", "Sneak Attack": "偷袭", "Spellcasting": "施法能力",
+  "Cunning Action": "狡诈行动", "Action Surge": "动作如潮", "Keen Senses": "敏锐感官",
+  "Fey Ancestry": "妖精血统", "Trance": "出神", Lucky: "幸运", "Brave": "无畏",
+  "Halfling Nimbleness": "半身人灵巧", "Naturally Stealthy": "天生潜行",
+  "Hellish Resistance": "地狱抗性", "Infernal Legacy": "地狱遗产", "Savage Attacks": "野蛮攻击",
+  "Draconic Ancestry": "龙族血统", "Breath Weapon": "吐息武器", "Damage Resistance": "伤害抗性",
+  "Extra Language": "额外语言", "Skill Versatility": "技能多面手",
+  "Dwarven Toughness": "矮人坚韧", "Gnome Cunning": "侏儒狡黠",
+  "Artificer's Lore": "工匠学识", Tinker: "工匠", "High Elf Cantrip": "高等精灵戏法",
+  "Relentless Endurance": "不屈坚韧", "Menacing": "威吓气质",
 };
 const t = (k) => ZH[k] || k; // 未知名称回退英文
 
@@ -163,80 +186,277 @@ function App() {
   );
 }
 
+const PB_COST = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
+const PB_BUDGET = 27;
+const AB_ORDER = ["STR", "DEX", "CON", "INT", "WIS", "CHA"];
+
 function CreateWizard({ races, classes, onSubmit }) {
-  const [form, setForm] = useState({ name: "", race: "", class_name: "", method: "standard", chosen_skills: [] });
-  const [skillChoices, setSkillChoices] = useState(null);
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState({
+    name: "", race: "", class_name: "", method: "point-buy",
+    abilities: { STR: 8, DEX: 8, CON: 8, INT: 8, WIS: 8, CHA: 8 },
+    chosen_skills: [], background: "", feat: "",
+  });
+  const [raceDetail, setRaceDetail] = useState(null);
+  const [classDetail, setClassDetail] = useState(null);
+  const [feats, setFeats] = useState([]);
+  const [backgrounds, setBackgrounds] = useState([]);
+  const [rolled, setRolled] = useState(null);
+  const set = (k, v) => setForm({ ...form, [k]: v });
 
-  async function onClassChange(e) {
-    const cls = e.target.value;
-    setForm({ ...form, class_name: cls, chosen_skills: [] });
-    if (!cls) {
-      setSkillChoices(null);
-      return;
+  async function pickRace(name) {
+    set("race", name);
+    const d = await (await fetch(`${API}/api/races/${name}`)).json();
+    setRaceDetail(d);
+  }
+  async function pickClass(name) {
+    set("class_name", name);
+    set("chosen_skills", []);
+    const d = await (await fetch(`${API}/api/classes/${name}`)).json();
+    setClassDetail(d);
+    if (name && !feats.length) {
+      const f = await (await fetch(`${API}/api/feats`)).json();
+      setFeats(f.feats.filter((x) => ["origin", "general"].includes(x.type)));
+      const b = await (await fetch(`${API}/api/backgrounds`)).json();
+      setBackgrounds(b.backgrounds);
     }
-    const resp = await fetch(`${API}/api/class/${cls}/skill-choices`);
-    const d = await resp.json();
-    setSkillChoices(d.choose ? d : null);
+  }
+  async function rollPreview() {
+    const d = await (await fetch(`${API}/api/roll-abilities`)).json();
+    setRolled(d.abilities);
   }
 
-  function toggleSkill(skill) {
-    const picked = form.chosen_skills.includes(skill)
-      ? form.chosen_skills.filter((s) => s !== skill)
-      : [...form.chosen_skills, skill].slice(0, skillChoices.choose);
-    setForm({ ...form, chosen_skills: picked });
+  const canNext =
+    (step === 1 && form.race) || (step === 2 && form.class_name) ||
+    (step === 3 && (form.method === "rolled" ? rolled : spent() <= PB_BUDGET)) ||
+    (step === 4 && form.chosen_skills.length === (classDetail?.skill_choices?.choose ?? 0)) ||
+    (step === 5 && form.background) || (step === 6 && form.name.trim());
+
+  function spent() {
+    return Object.values(form.abilities).reduce((s, v) => s + (PB_COST[v] ?? 0), 0);
+  }
+  function bump(ab, delta) {
+    const cur = form.abilities[ab];
+    const next = cur + delta;
+    if (next < 8 || next > 15) return;
+    if (delta > 0 && spent() + PB_COST[next] - PB_COST[cur] > PB_BUDGET) return;
+    set("abilities", { ...form.abilities, [ab]: next });
   }
 
-  const ready = form.name && form.race && form.class_name;
+  const totalMod = {};
+  AB_ORDER.forEach((ab) => {
+    const base = form.method === "rolled" && rolled ? rolled[ab] : form.abilities[ab];
+    const bonus = raceDetail?.ability_bonuses?.find((b) => b.ability === ab)?.bonus || 0;
+    totalMod[ab] = base + bonus;
+  });
+
+  const next = () => setStep(step + 1);
+  const prev = () => setStep(Math.max(1, step - 1));
+  const steps = ["种族", "职业", "属性", "技能", "专长·背景", "名字"];
+
   return (
-    <div className="wizard">
+    <div className="wizard multi">
       <h1>🗡️ DNDF 文字冒险</h1>
       <p className="sub">创建你的冒险者，AI 地下城主将为你编织传奇</p>
-      <label>角色名
-        <input value={form.name} onChange={set("name")} placeholder="例如：铁锤·铜须" />
-      </label>
-      <label>种族
-        <select value={form.race} onChange={set("race")}>
-          <option value="">选择种族…</option>
-          {races.map((r) => <option key={r} value={r}>{t(r)}</option>)}
-        </select>
-      </label>
-      <label>职业
-        <select value={form.class_name} onChange={onClassChange}>
-          <option value="">选择职业…</option>
-          {classes.map((c) => <option key={c} value={c}>{t(c)}</option>)}
-        </select>
-      </label>
-      {skillChoices && (
-        <div className="skill-pick">
-          <div className="skill-pick-title">
-            选择熟练技能（选 {skillChoices.choose} 个）
+      <div className="steps">
+        {steps.map((s, i) => (
+          <div key={s} className={`step-dot ${i + 1 === step ? "on" : ""} ${i + 1 < step ? "done" : ""}`}>
+            {i + 1 < step ? "✓" : i + 1}
+            <span>{s}</span>
           </div>
-          <div className="skill-pick-opts">
-            {skillChoices.options.map((s) => (
-              <label key={s} className={`chip ${form.chosen_skills.includes(s) ? "on" : ""}`}>
-                <input
-                  type="checkbox"
-                  checked={form.chosen_skills.includes(s)}
-                  onChange={() => toggleSkill(s)}
-                />
-                {t(s)}
-              </label>
-            ))}
+        ))}
+      </div>
+
+      <div className="step-body">
+        {step === 1 && (
+          <div className="pick-grid">
+            <div className="pick-list">
+              {races.map((r) => (
+                <button key={r} className={`pick-card ${form.race === r ? "on" : ""}`} onClick={() => pickRace(r)}>
+                  <b>{t(r)}</b>
+                </button>
+              ))}
+            </div>
+            <div className="pick-detail">
+              {raceDetail ? (
+                <>
+                  <h3>{t(raceDetail.name)}</h3>
+                  <div className="detail-meta">
+                    体型 {t(raceDetail.size)} · 速度 {raceDetail.speed}ft
+                    {raceDetail.ability_bonuses.length > 0 && (
+                      <> · 加成 {raceDetail.ability_bonuses.map((b) => `${t(b.ability)}+${b.bonus}`).join(" ")}</>
+                    )}
+                  </div>
+                  <ul className="detail-traits">
+                    {raceDetail.traits.map((tr) => (
+                      <li key={tr.index}>
+                        <b>{t(tr.name)}</b>
+                        <p>{tr.desc}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <div className="detail-empty">选择种族查看特性</div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-      <label>属性生成
-        <select value={form.method} onChange={set("method")}>
-          <option value="standard">标准购点（15,14,13,12,10,8）</option>
-          <option value="rolled">骰点（4d6 取 3 高）</option>
-        </select>
-      </label>
-      <button className="primary" disabled={!ready} onClick={() => onSubmit(form)}>
-        开始冒险
-      </button>
+        )}
+
+        {step === 2 && (
+          <div className="pick-grid">
+            <div className="pick-list">
+              {classes.map((c) => (
+                <button key={c} className={`pick-card ${form.class_name === c ? "on" : ""}`} onClick={() => pickClass(c)}>
+                  <b>{t(c)}</b>
+                </button>
+              ))}
+            </div>
+            <div className="pick-detail">
+              {classDetail ? (
+                <>
+                  <h3>{t(classDetail.name)}</h3>
+                  <div className="detail-meta">
+                    生命骰 d{classDetail.hit_die} · 豁免 {classDetail.saving_throws.map(t).join("/")}
+                    {classDetail.skill_choices?.choose ? ` · 可选技能 ${classDetail.skill_choices.choose} 个` : ""}
+                  </div>
+                  <ul className="detail-traits">
+                    {Object.entries(classDetail.level_features).flatMap(([lv, feats]) =>
+                      feats.map((f) => (
+                        <li key={`${lv}-${f.index}`}>
+                          <b>{t(f.name)}</b>
+                          <p>{f.desc}</p>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </>
+              ) : (
+                <div className="detail-empty">选择职业查看技能与特性</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="pb-panel">
+            <div className="pb-mode">
+              <label><input type="radio" checked={form.method === "point-buy"} onChange={() => set("method", "point-buy")} /> 标准购点（27 点）</label>
+              <label><input type="radio" checked={form.method === "rolled"} onChange={() => { set("method", "rolled"); if (!rolled) rollPreview(); }} /> 骰点（4d6 取 3 高）</label>
+              {form.method === "rolled" && <button className="pb-reroll" onClick={rollPreview}>🎲 重掷</button>}
+            </div>
+            <div className="pb-grid">
+              {AB_ORDER.map((ab) => {
+                const base = form.method === "rolled" && rolled ? rolled[ab] : form.abilities[ab];
+                return (
+                  <div key={ab} className="pb-ability">
+                    <div className="pb-name">{t(ab)}</div>
+                    {form.method === "point-buy" ? (
+                      <>
+                        <div className="pb-score">{base}</div>
+                        <div className="pb-btns">
+                          <button onClick={() => bump(ab, -1)} disabled={base <= 8}>−</button>
+                          <button onClick={() => bump(ab, 1)} disabled={base >= 15 || spent() + PB_COST[base + 1] - PB_COST[base] > PB_BUDGET}>＋</button>
+                        </div>
+                        <div className="pb-cost">{PB_COST[base]} 点</div>
+                      </>
+                    ) : (
+                      <div className="pb-score">{base}</div>
+                    )}
+                    <div className="pb-total">
+                      修正 {mod(totalMod[ab])} <small>（含种族 {mod(totalMod[ab] - base)}）</small>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {form.method === "point-buy" && (
+              <div className={`pb-budget ${spent() > PB_BUDGET ? "over" : ""}`}>
+                已用 {spent()}/{PB_BUDGET} 点
+              </div>
+            )}
+            <p className="pb-note">购点范围 8-15，按 5e 规则书花费表严格计算；种族加成自动应用。</p>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="skill-pick big">
+            <div className="skill-pick-title">
+              选择熟练技能（选 {classDetail?.skill_choices?.choose ?? 0} 个）
+            </div>
+            <div className="skill-pick-opts">
+              {(classDetail?.skill_choices?.options ?? []).map((s) => (
+                <label key={s} className={`chip ${form.chosen_skills.includes(s) ? "on" : ""}`}>
+                  <input
+                    type="checkbox"
+                    checked={form.chosen_skills.includes(s)}
+                    onChange={() => {
+                      const picked = form.chosen_skills.includes(s)
+                        ? form.chosen_skills.filter((x) => x !== s)
+                        : [...form.chosen_skills, s].slice(0, classDetail.skill_choices.choose);
+                      set("chosen_skills", picked);
+                    }}
+                  />
+                  {t(s)}
+                </label>
+              ))}
+            </div>
+            <p className="pb-note">背景也会提供额外技能熟练（下一步选择）。</p>
+          </div>
+        )}
+
+        {step === 5 && (
+          <div className="feat-panel">
+            <h3>背景（提供技能熟练 + 专长）</h3>
+            <div className="bg-list">
+              {backgrounds.map((b) => (
+                <button key={b.index} className={`bg-card ${form.background === b.name ? "on" : ""}`} onClick={() => set("background", b.name)}>
+                  <b>{t(b.name)}</b>
+                  <span>赠送专长：{t(b.feat)}</span>
+                  <span>技能：{b.proficiencies.map((p) => t(p.replace("Skill: ", ""))).join("、")}</span>
+                </button>
+              ))}
+            </div>
+            <h3>1 级专长（可选）</h3>
+            <div className="bg-list">
+              {feats.map((f) => (
+                <button key={f.index} className={`bg-card ${form.feat === f.name ? "on" : ""}`} onClick={() => set("feat", form.feat === f.name ? "" : f.name)}>
+                  <b>{t(f.name)}</b>
+                  <span>{f.desc.slice(0, 60)}…</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === 6 && (
+          <div className="final-step">
+            <label>冒险者之名
+              <input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="例如：铁锤·铜须" />
+            </label>
+            <div className="final-summary">
+              <div><b>{t(form.race)}</b> {t(form.class_name)} · Lv.1</div>
+              <div>背景：{form.background ? t(form.background) : "—"} · 专长：{form.feat ? t(form.feat) : "—"}</div>
+              <div>属性：{AB_ORDER.map((ab) => `${t(ab)} ${totalMod[ab]}`).join(" · ")}</div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="step-nav">
+        {step > 1 && <button className="ghost-btn" onClick={prev}>← 上一步</button>}
+        {step < 6 ? (
+          <button className="primary" disabled={!canNext} onClick={next}>下一步 →</button>
+        ) : (
+          <button className="primary" disabled={!canNext} onClick={() => onSubmit(form)}>开始冒险</button>
+        )}
+      </div>
     </div>
   );
+}
+
+function mod(v) {
+  return v >= 0 ? `+${v}` : `${v}`;
 }
 
 function formatTool(evt) {

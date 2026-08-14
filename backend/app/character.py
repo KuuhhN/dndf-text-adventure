@@ -21,6 +21,27 @@ def ability_modifier(score: int) -> int:
     return (score - 10) // 2
 
 
+# 标准购点（5e PHB 严格规则）
+POINT_BUY_COSTS = {8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9}
+POINT_BUY_BUDGET = 27
+
+
+def validate_point_buy(abilities: dict) -> list[str]:
+    """校验标准购点结果：每项 8-15，总花费 <= 27。返回错误列表（空=合法）。"""
+    errors = []
+    for ab in ABILITY_ORDER:
+        v = abilities.get(ab)
+        if v is None:
+            errors.append(f"缺少属性 {ab}")
+        elif v < 8 or v > 15:
+            errors.append(f"{ab}={v} 超出购点范围（8-15）")
+    if not errors:
+        total = sum(POINT_BUY_COSTS[abilities[a]] for a in ABILITY_ORDER)
+        if total > POINT_BUY_BUDGET:
+            errors.append(f"购点超出预算（{total}/{POINT_BUY_BUDGET}）")
+    return errors
+
+
 def roll_abilities() -> list[int]:
     """4d6 取 3 高 ×6。"""
     return [sum(sorted(random.randint(1, 6) for _ in range(4))[1:]) for _ in range(6)]
@@ -79,6 +100,9 @@ def create_character(
     class_name: str,
     method: str = "standard",
     chosen_skills: list[str] | None = None,
+    abilities: dict | None = None,
+    background: str = "",
+    feat: str = "",
 ) -> dict:
     race = db.get_race(race_name)
     cls = db.get_class(class_name)
@@ -87,12 +111,20 @@ def create_character(
     if not cls:
         raise ValueError(f"未知职业: {class_name}")
 
-    if method == "rolled":
+    if method == "point-buy":
+        if not abilities:
+            raise ValueError("point-buy 模式需要提供 abilities")
+        errors = validate_point_buy(abilities)
+        if errors:
+            raise ValueError("；".join(errors))
+        scores = [abilities[a] for a in ABILITY_ORDER]
+    elif method == "rolled":
         scores = roll_abilities()
     else:
         scores = list(STANDARD_ARRAY)
-    random.shuffle(scores)
-    abilities = dict(zip(ABILITY_ORDER, scores))
+        random.shuffle(scores)
+    base_abilities = dict(zip(ABILITY_ORDER, scores))
+    abilities = dict(base_abilities)
     # 种族加成（人类 +1 全属性，含在 SRD 数据里）
     for ab, bonus in _race_ability_bonuses(race).items():
         abilities[ab] = abilities.get(ab, 0) + bonus
@@ -113,6 +145,33 @@ def create_character(
             picked = choices["options"][: choices["choose"]]
         proficient |= set(picked)
 
+    # 背景（2024 SRD）：技能熟练 + 赠送专长
+    feats: list[str] = []
+    if background:
+        bg = db.get_item("backgrounds", background)
+        if not bg:
+            raise ValueError(f"未知背景: {background}")
+        for p in bg.get("proficiencies", []):
+            skill_name = (p.get("name") or "").replace("Skill: ", "")
+            if skill_name in SKILL_ABILITIES:
+                proficient.add(skill_name)
+        bg_feat = (bg.get("feat") or {}).get("name")
+        if bg_feat:
+            feats.append(bg_feat)
+
+    # 1 级专长（2024 SRD：origin/general，无 minimum_level > 1 前置）
+    if feat:
+        f = db.get_item("feats", feat)
+        if not f:
+            raise ValueError(f"未知专长: {feat}")
+        prereq = f.get("prerequisites") or {}
+        min_lv = prereq.get("minimum_level", 1) if isinstance(prereq, dict) else 1
+        if min_lv > 1:
+            raise ValueError(f"专长「{feat}」需要 {min_lv} 级才能选择")
+        if f.get("type") not in ("origin", "general"):
+            raise ValueError(f"专长「{feat}」不是 1 级可选类型（{f.get('type')}）")
+        feats.append(feat)
+
     skills = {
         skill: ability_modifier(abilities[SKILL_ABILITIES[skill]]) + (prof_bonus if skill in proficient else 0)
         for skill in SKILL_ABILITIES
@@ -123,6 +182,8 @@ def create_character(
         "race": race_name,
         "class": class_name,
         "level": 1,
+        "background": background or "",
+        "feats": feats,
         "abilities": abilities,
         "modifiers": {a: ability_modifier(abilities[a]) for a in ABILITY_ORDER},
         "max_hp": max_hp,

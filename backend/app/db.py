@@ -46,10 +46,123 @@ def get_monster(name): return get_item("monsters", name)
 def get_equipment(name): return get_item("equipment", name)
 def list_races(): return list_names("races")
 def list_classes(): return list_names("classes")
-def list_spells(level: int | None = None) -> list[str]:
+
+
+def get_zh(kind: str, index: str) -> str | None:
+    """查询翻译：kind 形如 traits/features/feats。"""
     with _conn() as c:
-        if level is None:
-            rows = c.execute('SELECT name FROM spells ORDER BY level, name').fetchall()
-        else:
-            rows = c.execute('SELECT name FROM spells WHERE level = ? ORDER BY name', (level,)).fetchall()
-    return [r["name"] for r in rows]
+        row = c.execute("SELECT zh FROM translations WHERE key = ?", (f"{kind}:{index}",)).fetchone()
+    return row["zh"] if row else None
+
+
+def _by_index(table: str, index: str) -> dict | None:
+    """按 data JSON 内的 index 字段查条目（traits/features 的引用是小写 index，name 列是大写）。"""
+    with _conn() as c:
+        row = c.execute(
+            f'SELECT data FROM "{table}" WHERE json_extract(data, "$.index") = ?',
+            (index,),
+        ).fetchone()
+    return json.loads(row["data"]) if row else None
+
+
+def _trait_detail(index: str) -> dict:
+    """特性详情（名称 + 中文描述，无翻译时回退英文）。"""
+    item = _by_index("traits", index) or _by_index("features", index)
+    if not item:
+        return {"index": index, "name": index, "desc": "", "zh": False}
+    zh = get_zh("traits", index) or get_zh("features", index)
+    return {
+        "index": index,
+        "name": item.get("name", index),
+        "desc": zh or "\n".join(item.get("desc") or []),
+        "zh": zh is not None,
+    }
+
+
+def get_race_detail(name: str) -> dict | None:
+    """种族详情：基础信息 + 特性（中文描述）。"""
+    race = get_race(name)
+    if not race:
+        return None
+    traits = [_trait_detail(t["index"]) for t in race.get("traits", [])]
+    bonuses = [{"ability": ab["ability_score"]["name"], "bonus": ab.get("bonus", 0)}
+               for ab in race.get("ability_bonuses", [])]
+    return {
+        "name": race.get("name"),
+        "size": race.get("size"),
+        "speed": race.get("speed"),
+        "ability_bonuses": bonuses,
+        "languages": race.get("languages", ""),
+        "traits": traits,
+        "subraces": [s.get("name") for s in race.get("subraces", [])],
+    }
+
+
+def get_class_detail(name: str) -> dict | None:
+    """职业详情：生命骰/熟练/技能选项/1-2 级特性（中文描述）。"""
+    cls = get_class(name)
+    if not cls:
+        return None
+    # 等级特性：levels 表（class index 在 data JSON 内）
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT data FROM levels WHERE json_extract(data, '$.class.index') = ? AND level <= 2 ORDER BY level",
+            (cls.get("index"),),
+        ).fetchall()
+    level_features = {}
+    for r in rows:
+        item = json.loads(r["data"])
+        lv = item.get("level")
+        level_features[lv] = [
+            {"index": f["index"], "name": f["name"], **{k: v for k, v in _trait_detail(f["index"]).items() if k in ("desc",)}}
+            for f in item.get("features", [])
+        ]
+    from .character import class_skill_choices
+    return {
+        "name": cls.get("name"),
+        "hit_die": cls.get("hit_die"),
+        "saving_throws": [s.get("name") for s in cls.get("saving_throws", [])],
+        "proficiencies": [p.get("name") for p in cls.get("proficiencies", [])][:12],
+        "skill_choices": class_skill_choices(name),
+        "level_features": level_features,
+    }
+
+
+def get_feats() -> list[dict]:
+    """全部专长（2024 SRD，含中文描述）。"""
+    with _conn() as c:
+        rows = c.execute("SELECT data FROM feats ORDER BY name").fetchall()
+    out = []
+    for r in rows:
+        item = json.loads(r["data"])
+        idx = item.get("index", "")
+        zh = get_zh("feats", idx)
+        out.append({
+            "index": idx,
+            "name": item.get("name", idx),
+            "type": item.get("type", ""),
+            "prerequisites": item.get("prerequisites", ""),
+            "desc": zh or item.get("description", ""),
+            "zh": zh is not None,
+        })
+    return out
+
+
+def get_backgrounds() -> list[dict]:
+    """全部背景（2024 SRD）。"""
+    with _conn() as c:
+        rows = c.execute("SELECT data FROM backgrounds ORDER BY name").fetchall()
+    out = []
+    for r in rows:
+        item = json.loads(r["data"])
+        out.append({
+            "index": item.get("index", ""),
+            "name": item.get("name", r["data"][:30]),
+            "ability_scores": [a.get("name") for a in item.get("ability_scores", [])],
+            "feat": (item.get("feat") or {}).get("name", ""),
+            "proficiencies": [p.get("name") for p in item.get("proficiencies", [])],
+            "skill_choices": [o.get("name") for o in
+                              (item.get("proficiency_choices") or [{}])[0].get("from", {}).get("options", [])]
+                              if item.get("proficiency_choices") else [],
+        })
+    return out
