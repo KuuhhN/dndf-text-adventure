@@ -91,7 +91,8 @@ async def _stream_once(
                             slot["name"] += fn["name"]
                         if fn.get("arguments"):
                             slot["arguments"] += fn["arguments"]
-            except (httpx.RemoteProtocolError, httpx.ReadError, httpx.StreamError, httpx.ConnectError) as e:
+            except (httpx.RemoteProtocolError, httpx.ReadError, httpx.StreamError, httpx.ConnectError,
+                    httpx.TimeoutException) as e:
                 raise LLMStreamError("AI 连接中断（网络波动或临时限额），请稍后重试并重新发送你的行动") from e
             for idx in sorted(tool_calls):
                 slot = tool_calls[idx]
@@ -131,7 +132,8 @@ async def stream_chat(
             return
         except LLMStreamError:
             raise  # 流中断/额度：不重试（避免重复叙事），交上层友好提示
-        except (httpx.RemoteProtocolError, httpx.ReadError, httpx.StreamError, httpx.ConnectError) as e:
+        except (httpx.RemoteProtocolError, httpx.ReadError, httpx.StreamError, httpx.ConnectError,
+                httpx.TimeoutException) as e:
             last_err = e
             if attempt < RETRY:
                 continue  # 连接前失败：重试
