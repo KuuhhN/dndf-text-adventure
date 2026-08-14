@@ -202,7 +202,7 @@ function CreateWizard({ races, classes, onSubmit }) {
   const [feats, setFeats] = useState([]);
   const [backgrounds, setBackgrounds] = useState([]);
   const [rolled, setRolled] = useState(null);
-  const set = (k, v) => setForm({ ...form, [k]: v });
+  const set = (k, v) => setForm((prev) => ({ ...prev, [k]: v }));
 
   async function pickRace(name) {
     set("race", name);
@@ -364,7 +364,7 @@ function CreateWizard({ races, classes, onSubmit }) {
                       <div className="pb-score">{base}</div>
                     )}
                     <div className="pb-total">
-                      修正 {mod(totalMod[ab])} <small>（含种族 {mod(totalMod[ab] - base)}）</small>
+                      修正 {mod(Math.floor((totalMod[ab] - 10) / 2))} <small>（含种族 {mod(totalMod[ab] - base)}）</small>
                     </div>
                   </div>
                 );
