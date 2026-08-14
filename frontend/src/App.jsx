@@ -368,7 +368,8 @@ function CreateWizard({ races, classes, onSubmit }) {
     setRolled(d.abilities);
   }
 
-  const canNext =
+  // 延迟求值（箭头函数）：hasSkilled/hasExpertise 在其后定义，立即求值会触发 TDZ 崩溃（选满技能后白屏）
+  const canNext = () =>
     (step === 1 && form.race) || (step === 2 && form.class_name) ||
     (step === 3 && (form.method === "rolled" ? rolled : spent() <= PB_BUDGET)) ||
     (step === 4 && form.background) ||
@@ -678,11 +679,11 @@ function CreateWizard({ races, classes, onSubmit }) {
       <div className="step-nav">
         {step > 1 && <button className="ghost-btn" onClick={prev}>← 上一步</button>}
         {step < 6 ? (
-          <button className="primary" disabled={!canNext} onClick={next}>下一步 →</button>
+          <button className="primary" disabled={!canNext()} onClick={next}>下一步 →</button>
         ) : (
-          <button className="primary" disabled={!canNext} onClick={() => onSubmit(form)}>开始冒险</button>
+          <button className="primary" disabled={!canNext()} onClick={() => onSubmit(form)}>开始冒险</button>
         )}
-        {!canNext && step === 5 && (
+        {!canNext() && step === 5 && (
           <p className="step-hint">
             {(() => {
               const choose = classDetail?.skill_choices?.choose ?? 0;
@@ -693,7 +694,7 @@ function CreateWizard({ races, classes, onSubmit }) {
             })()}
           </p>
         )}
-        {!canNext && step === 4 && <p className="step-hint">请先选择一个背景</p>}
+        {!canNext() && step === 4 && <p className="step-hint">请先选择一个背景</p>}
       </div>
     </div>
   );
