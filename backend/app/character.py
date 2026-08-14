@@ -67,12 +67,12 @@ def _race_ability_bonuses(race: dict) -> dict:
 
 
 def _class_proficient_skills(class_data: dict) -> set[str]:
-    """从 class.proficiencies 提取熟练技能名（去 'skill-' 前缀）。"""
+    """从 class.proficiencies 提取熟练技能名（'Skill: ' 前缀，兼容 2024 平铺结构）。"""
     out = set()
     for p in class_data.get("proficiencies") or []:
-        idx = (p.get("proficiency") or {}).get("index", "")
-        if idx.startswith("skill-"):
-            out.add(idx[len("skill-"):].replace("-", " ").title())
+        name = p.get("name") or p.get("proficiency", {}).get("name", "")
+        if name.startswith("Skill: "):
+            out.add(name[len("Skill: "):])
     return out
 
 
@@ -86,9 +86,10 @@ def class_skill_choices(class_name: str) -> dict:
             continue
         options = []
         for opt in pc.get("from", {}).get("options", []):
-            idx = (opt.get("item") or {}).get("index", "")
-            if idx.startswith("skill-"):
-                options.append(idx[len("skill-"):].replace("-", " ").title())
+            item = opt.get("item") or {}
+            name = item.get("name") or ""
+            if name.startswith("Skill: "):
+                options.append(name[len("Skill: "):])
         if options:
             return {"desc": pc.get("desc", ""), "choose": pc.get("choose", 1), "options": options}
     return {}
@@ -184,10 +185,12 @@ def create_character(
 
     # 技能熟练专长（Skilled）：额外 3 个技能熟练（用户自选优先，不足自动补齐——职业/背景已熟练的会被过滤）
     if "Skilled" in feats:
-        picked = [s for s in (skilled_skills or []) if s in SKILL_ABILITIES and s not in proficient][:3]
+        picked = list(dict.fromkeys(s for s in (skilled_skills or []) if s in SKILL_ABILITIES and s not in proficient))[:3]
         candidates = [s for s in SKILL_ABILITIES if s not in proficient and s not in picked]
         candidates.sort(key=lambda s: ability_modifier(abilities[SKILL_ABILITIES[s]]), reverse=True)
         for s in picked + candidates[: max(0, 3 - len(picked))]:
+            if s in proficient:
+                continue  # 防 picked 重复输入导致双倍熟练
             proficient.add(s)
             skills[s] += prof_bonus
 

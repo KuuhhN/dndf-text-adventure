@@ -592,8 +592,31 @@ def test_skilled_feat_backfills_when_short():
     c = create_character("SS", "Human", "Fighter", feat="Skilled",
                          chosen_skills=["Athletics", "Perception"],
                          skilled_skills=["Medicine", "Persuasion"])
-    gained = [s for s in c["proficient_skills"] if s not in ("Athletics", "Perception")]
-    assert len(gained) == 3, f"应补齐到 3 个，实际 {gained}"
+    assert len(c["proficient_skills"]) == 5, f"应 2+3=5 个熟练，实际 {c['proficient_skills']}"
+    assert "Medicine" in c["proficient_skills"] and "Persuasion" in c["proficient_skills"]
+
+
+def test_skilled_feat_deduplicates_duplicate_input():
+    """技能熟练专长：重复技能输入只加一次熟练（防双倍熟练 bug）。"""
+    from app.character import create_character
+
+    c = create_character("DD", "Human", "Fighter", feat="Skilled",
+                         chosen_skills=["Athletics", "Perception"],
+                         skilled_skills=["Stealth", "Stealth", "Arcana"])
+    mod = c["modifiers"]["DEX"]
+    assert c["skills"]["Stealth"] == mod + 2, f"Stealth 应只加一次熟练，实际 {c['skills']['Stealth']}"
+    assert len(c["proficient_skills"]) == 5, f"应 2+3=5 个熟练，实际 {c['proficient_skills']}"
+
+
+def test_skilled_feat_ignores_invalid_names():
+    """技能熟练专长：非法技能名/职业重叠项被忽略，补齐到 3 个。"""
+    from app.character import create_character
+
+    c = create_character("IN", "Human", "Fighter", feat="Skilled",
+                         chosen_skills=["Athletics", "Perception"],
+                         skilled_skills=["NotASkill", "Athletics", "Medicine"])
+    assert len(c["proficient_skills"]) == 5, f"应 2+3=5 个熟练，实际 {c['proficient_skills']}"
+    assert "Medicine" in c["proficient_skills"], "有效自选应保留"
 
 
 def test_background_skills_auto_granted():

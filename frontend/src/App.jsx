@@ -365,6 +365,10 @@ function CreateWizard({ races, classes, onSubmit }) {
     .filter((s) => SKILL_HINTS[s]);
   const bgFeat = backgrounds.find((b) => b.name === form.background)?.feat;
   const hasSkilled = form.feat === "Skilled";
+  // 职业固定熟练技能（技能页置灰用，提前计算避免每次渲染重建）
+  const classFixedSkills = (classDetail?.proficiencies || [])
+    .filter((p) => String(p).startsWith("Skill: "))
+    .map((p) => String(p).replace("Skill: ", ""));
 
   return (
     <div className="wizard multi">
@@ -527,9 +531,10 @@ function CreateWizard({ races, classes, onSubmit }) {
             </div>
             <div className="skill-pick-opts">
               {(classDetail?.skill_choices?.options ?? []).map((s) => (
-                <label key={s} className={`chip ${form.chosen_skills.includes(s) ? "on" : ""}`}>
+                <label key={s} className={`chip ${form.chosen_skills.includes(s) ? "on" : ""} ${form.skilled_skills.includes(s) ? "taken" : ""}`}>
                   <input
                     type="checkbox"
+                    disabled={form.skilled_skills.includes(s)}
                     checked={form.chosen_skills.includes(s)}
                     onChange={() => {
                       const picked = form.chosen_skills.includes(s)
@@ -554,10 +559,7 @@ function CreateWizard({ races, classes, onSubmit }) {
                 </div>
                 <div className="skill-pick-opts">
                   {Object.keys(SKILL_HINTS).map((s) => {
-                    const classFixed = (classDetail?.proficiencies || [])
-                      .filter((p) => String(p).startsWith("Skill: "))
-                      .map((p) => String(p).replace("Skill: ", ""));
-                    const taken = form.chosen_skills.includes(s) || bgSkills.includes(s) || classFixed.includes(s);
+                    const taken = form.chosen_skills.includes(s) || bgSkills.includes(s) || classFixedSkills.includes(s);
                     const picked = form.skilled_skills.includes(s);
                     return (
                       <label key={s} className={`chip ${picked ? "on" : ""} ${taken ? "taken" : ""}`}>
