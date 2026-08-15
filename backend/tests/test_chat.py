@@ -188,3 +188,22 @@ def test_game_chat_unexpected_error_gets_error():
     assert errors, "未预期异常必须兜底发 error"
     assert "DM 失联" in errors[0]["text"]
     assert [e["type"] for e in events].count("state") == 1  # state 恰好一次
+
+
+def test_system_prompt_injects_location_and_neighbors():
+    """当前位置注入：LLM 每轮知道所在区域与邻接可达区域（防叙事地点与地图脱节）。"""
+    from app.chat import build_system_prompt
+    from app.character import create_character
+    c = create_character("LocTest", "Human", "Fighter", start_location="capital")
+    prompt = build_system_prompt(c)
+    assert "当前位置" in prompt
+    assert "王都艾瑟兰" in prompt
+    # 邻接区域中文名全部注入
+    for name in ("狮鹫酒馆", "矿洞镇", "灰塔法师塔", "海岸城"):
+        assert name in prompt, f"邻接区域 {name} 应注入 prompt"
+    # 跨区域指代约束
+    assert "禁止跨区域指代" in prompt
+    # 村庄酒馆开局：注入村庄邻接
+    c2 = create_character("LocTest2", "Human", "Fighter", start_location="tavern")
+    prompt2 = build_system_prompt(c2)
+    assert "醉龙酒馆" in prompt2 and "村庄集市" in prompt2
