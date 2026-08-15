@@ -184,7 +184,7 @@ def accept_quest(character: dict, title: str) -> dict:
 
 def buy_item(character: dict, item: str, quantity: int = 1) -> dict:
     """商店购买：按引擎定价扣金币并入背包。价格不信任调用方，查 SHOP_ITEMS 定价。"""
-    if not isinstance(quantity, int) or not (1 <= quantity <= 99):
+    if isinstance(quantity, bool) or not isinstance(quantity, int) or not (1 <= quantity <= 99):
         raise ValueError("数量必须是 1-99 的整数")
     spec = next((s for s in SHOP_ITEMS if s["name"] == item), None)
     if not spec:
