@@ -13,7 +13,7 @@ DICE_RE = re.compile(r"(\d*)d(\d+)([+-]\d+)?")
 
 
 def roll(expression: str) -> dict:
-    """解析并执行骰子表达式，如 '1d20+4' / '2d6'。修正值钳制 ±100（security：防 LLM 超大加值）。"""
+    """解析并执行骰子表达式，如 '1d20+4' / '2d6'。修正值越界（±100 外）拒绝（security：防 LLM 超大加值）。"""
     m = DICE_RE.match(expression.strip().lower())
     if not m:
         raise ValueError(f"无效骰子表达式: {expression}")
@@ -482,7 +482,7 @@ def encounter(character: dict, monsters: list[str]) -> dict:
 def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
     """近战攻击：D20 + 力量修正 + 熟练 vs 目标 AC；命中后掷武器伤害。
 
-    武器伤害骰由引擎裁定：已装备武器（含品质加成/词条）优先，未装备回退调用方参数。
+    武器伤害骰由引擎裁定：已装备武器（含品质加成/词条）优先，未装备强制默认 1d8（不信任调用方参数）。
     副作用：扣敌人 HP；击杀后移除敌人并加经验；经验达标自动升级。
     """
     combat = _combat(character)
@@ -903,7 +903,7 @@ TOOLS = [
                 "type": "object",
                 "properties": {
                     "target": {"type": "string", "description": "怪物英文名，如 Goblin"},
-                    "weapon_dice": {"type": "string", "description": "武器伤害骰，默认 1d8"},
+                    "weapon_dice": {"type": "string", "description": "已弃用：伤害骰由引擎按已装备武器裁定，传入会被忽略"},
                 },
                 "required": ["target"],
             },
