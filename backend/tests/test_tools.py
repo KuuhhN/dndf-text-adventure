@@ -274,6 +274,12 @@ def test_register_npc_add_and_update():
     r3 = execute_tool("register_npc", {"name": "神秘陌生人", "identity": "兜帽旅人",
                                        "relationship": "陌生", "notes": "递过一张羊皮纸"}, c)
     assert r3["npc"]["name"] == "神秘陌生人" and len(c["npcs"]) == 2
+    # execute_tool 不传 relationship 时关系保留（review 复查：分发处缺省值不得重置关系）
+    r5 = execute_tool("register_npc", {"name": "神秘陌生人", "location": "码头"}, c)
+    assert c["npcs"][1]["relationship"] == "陌生"
+    execute_tool("register_npc", {"name": "神秘陌生人", "relationship": "友好"}, c)
+    r6 = execute_tool("register_npc", {"name": "神秘陌生人", "location": "港口"}, c)
+    assert c["npcs"][1]["relationship"] == "友好", "execute_tool 路径关系应保留"
 
 
 def test_accept_quest_flow():

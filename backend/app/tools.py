@@ -834,7 +834,7 @@ def execute_tool(name: str, args: dict, character: dict | None = None) -> dict:
                               args.get("reward", ""), args.get("status", "available"))
         if name == "register_npc":
             return register_npc(character, args["name"], args.get("identity", ""),
-                                args.get("location", ""), args.get("relationship", "陌生"), args.get("notes", ""))
+                                args.get("location", ""), args.get("relationship", ""), args.get("notes", ""))
         if name == "accept_quest":
             return accept_quest(character, args["title"])
         if name == "buy_item":
