@@ -1191,7 +1191,7 @@ TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "target": {"type": "string", "description": "目标区域 key（tavern/village_market/farmland/forest_edge/mine_town/mage_tower/capital/coast_city/dragon_peaks）"},
+                    "target": {"type": "string", "description": "目标区域 key（tavern/village_market/farmland/forest_edge/mine_town/mage_tower/capital/capital_tavern/coast_city/dragon_peaks）"},
                 },
                 "required": ["target"],
             },
