@@ -764,39 +764,53 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
   const [modal, setModal] = useState(null); // null | "quests" | "shop" | "skills"
   const [shopItems, setShopItems] = useState([]);
   const [modalMsg, setModalMsg] = useState("");
+  const [buying, setBuying] = useState(false); // 购买请求中（防双击重复扣款）
 
   function openModal(name) {
     setModalMsg("");
     if (name === "shop" && shopItems.length === 0) {
-      fetch("/api/shop").then((r) => r.json()).then((d) => setShopItems(d.items || [])).catch(() => {});
+      fetch("/api/shop").then((r) => r.json()).then((d) => setShopItems(d.items || []))
+        .catch(() => setModalMsg("❌ 商店加载失败（后端未启动？）"));
     }
     setModal(name);
   }
 
   async function acceptQuest(title) {
     setModalMsg("");
-    const r = await fetch("/api/quests/accept", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: sessionId, title }),
-    });
-    const d = await r.json();
-    if (!r.ok) return setModalMsg(`❌ ${d.error || "操作失败"}`);
-    onCharacterUpdate(d.character);
-    setModalMsg(`✅ ${d.result?.note || "已接下"}`);
+    try {
+      const r = await fetch("/api/quests/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, title }),
+      });
+      const d = await r.json();
+      if (!r.ok) return setModalMsg(`❌ ${d.error || "操作失败"}`);
+      onCharacterUpdate(d.character);
+      setModalMsg(`✅ ${d.result?.note || "已接下"}`);
+    } catch (e) {
+      setModalMsg("❌ 网络错误，请重试");
+    }
   }
 
   async function buyItem(item) {
+    if (buying) return; // 防双击重复扣款
+    setBuying(true);
     setModalMsg("");
-    const r = await fetch("/api/shop/buy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: sessionId, item, quantity: 1 }),
-    });
-    const d = await r.json();
-    if (!r.ok) return setModalMsg(`❌ ${d.error || "购买失败"}`);
-    onCharacterUpdate(d.character);
-    setModalMsg(`✅ ${d.result?.note || "购买成功"}`);
+    try {
+      const r = await fetch("/api/shop/buy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, item, quantity: 1 }),
+      });
+      const d = await r.json();
+      if (!r.ok) return setModalMsg(`❌ ${d.error || "购买失败"}`);
+      onCharacterUpdate(d.character);
+      setModalMsg(`✅ ${d.result?.note || "购买成功"}`);
+    } catch (e) {
+      setModalMsg("❌ 网络错误，请重试");
+    } finally {
+      setBuying(false);
+    }
   }
 
   const availableQuests = (c.quests || []).filter((q) => q.status !== "accepted");
@@ -984,7 +998,7 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
                       <div className="modal-desc">{it.desc}</div>
                     </div>
                     <button className="modal-btn" onClick={() => buyItem(it.name)}
-                      disabled={(c.gold ?? 0) < it.price}>购买</button>
+                      disabled={buying || (c.gold ?? 0) < it.price}>{buying ? "购买中…" : "购买"}</button>
                   </div>
                 ))}
               </div>
