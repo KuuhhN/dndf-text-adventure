@@ -554,7 +554,10 @@ def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
         combat["enemies"].append(enemy)
     # 装备武器数值（引擎裁定，LLM 不能改骰子）：equipment_stats 缓存（物品官方数值/SHOP_ITEMS）> 默认
     equip_weapon = (character.get("equipment") or {}).get("weapon")
-    stats = (character.get("equipment_stats") or {}).get("weapon") or {}
+    stats = (character.get("equipment_stats") or {}).get("weapon")
+    if not stats and equip_weapon:
+        stats = _item_numeric_stats(character, equip_weapon)  # 旧存档无缓存时回退查 SHOP_ITEMS
+    stats = stats or {}
     if stats.get("damage"):
         weapon_dice = stats["damage"]
         quality_bonus = stats.get("damage_bonus", 0) or {"精良": 1, "稀有": 2}.get(stats.get("quality", ""), 0)
