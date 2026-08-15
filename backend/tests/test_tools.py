@@ -278,6 +278,30 @@ def test_change_location_flow():
     assert all(1 <= it["level"] <= 3 for it in SHOP_ITEMS) if SHOP_ITEMS else True
 
 
+def test_opening_and_start_location():
+    """初始场景：opening 文本落库 + start_location 生效 + 非法区域回退酒馆 + prompt 动态开篇。"""
+    from app.chat import build_system_prompt
+    # 自定义开局 + 森林起点
+    c = create_character("T", "Human", "Ranger", opening="你是被流放的猎手，在幽影森林边缘醒来，晨雾缭绕。",
+                         start_location="forest_edge")
+    assert c["opening"] == "你是被流放的猎手，在幽影森林边缘醒来，晨雾缭绕。"
+    assert c["location"] == "forest_edge"
+    # 非法区域回退
+    c2 = create_character("T2", "Human", "Fighter", start_location="moon_city")
+    assert c2["location"] == "tavern"
+    # 默认酒馆 + 无 opening 回退默认文案
+    c3 = create_character("T3", "Human", "Fighter")
+    assert c3["location"] == "tavern"
+    p3 = build_system_prompt(c3)
+    assert "醉龙酒馆" in p3
+    # prompt 注入自定义开篇
+    p = build_system_prompt(c)
+    assert "幽影森林边缘醒来" in p and "被流放的猎手" in p
+    # 超长 opening 截断
+    c4 = create_character("T4", "Human", "Fighter", opening="长" * 500)
+    assert len(c4["opening"]) <= 300
+
+
 def test_equipment_flow():
     """装备系统：装备/同槽替换回包/卸下回包/槽位非法/不在包/路由。"""
     from app.tools import equip_item, unequip_item, execute_tool

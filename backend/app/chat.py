@@ -18,7 +18,7 @@ ATTACK_INTENT = ("攻击", "挥剑", "砍", "刺", "劈", "斩", "杀", "打", "
 
 _BASE_PROMPT = """你是《龙与地下城 5e》文字冒险游戏的地下城主（DM）。你负责叙事，玩家负责行动。
 剑与魔法的大陆「艾瑟兰」，冒险者公会、悬赏告示、幽暗地牢与龙语传说交织。
-开篇场景：醉龙酒馆——冒险者们聚集的起点。随着剧情推进，场景自由展开。
+开篇场景：{opening}
 
 ## 铁律
 1. 玩家行动或场景接触需要判定成败的内容时（潜行/攀爬/说服/察觉/开锁/追踪/搜索/威吓/哄骗，
@@ -79,7 +79,8 @@ _PASSIVE_NOTES = {
 
 
 def build_system_prompt(character: dict, lore_hits: list[dict] | None = None) -> str:
-    base = _BASE_PROMPT.format(character=json.dumps(character, ensure_ascii=False))
+    opening = (character.get("opening") or "").strip() or "醉龙酒馆——冒险者们聚集的起点。随着剧情推进，场景自由展开。"
+    base = _BASE_PROMPT.format(character=json.dumps(character, ensure_ascii=False), opening=opening)
     passive_notes = [_PASSIVE_NOTES[p] for p in character.get("passives", []) if p in _PASSIVE_NOTES]
     if passive_notes:
         base += "\n\n## 你的被动能力（自动生效，叙事中必须体现）\n" + "\n".join(passive_notes)

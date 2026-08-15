@@ -12,7 +12,14 @@ const LORE_CAT_ZH = {
   religion: "宗教",
 };
 
-// 装备槽位（与后端 tools.EQUIP_SLOTS 一致）
+// 初始场景预设（区域 key + 开场文本）
+const SCENE_PRESETS = [
+  { key: "tavern", icon: "🍺", name: "醉龙酒馆", loc: "tavern", text: "你在艾瑟兰村的醉龙酒馆醒来：炉火噼啪、酒客喧哗，冒险的故事从一张吧台开始。" },
+  { key: "forest", icon: "🌲", name: "幽影森林边缘", loc: "forest_edge", text: "你在幽影森林边缘的猎营醒来：晨雾缭绕、鸟鸣幽远，猎弓就放在手边。" },
+  { key: "mine", icon: "⛏️", name: "矿洞镇", loc: "mine_town", text: "你在矿洞镇的铁匠铺前醒来：矿锤叮当、尘土飞扬，镇上正缺敢下深矿的雇工。" },
+  { key: "capital", icon: "🏰", name: "王都艾瑟兰", loc: "capital", text: "你在王都艾瑟兰的旅店房间醒来：窗外马车辘辘、骑士巡街，都城的暗流正在涌动。" },
+  { key: "custom", icon: "✍️", name: "自拟开局", loc: "tavern", text: "" },
+];
 const EQUIP_SLOTS = ["weapon", "armor", "trinket"];
 const EQUIP_SLOT_ZH = { weapon: "武器", armor: "护甲", trinket: "饰品" };
 const EQUIP_ICONS = { weapon: "⚔️", armor: "🛡️", trinket: "✨" };
@@ -229,10 +236,15 @@ function App() {
   }
 
   async function createCharacter(form) {
+    const scenePreset = SCENE_PRESETS.find((s) => s.key === form.scene) || SCENE_PRESETS[0];
+    const opening = form.scene === "custom"
+      ? (form.customOpening || "").trim()
+      : scenePreset.text;
+    const start_location = form.scene === "custom" ? "tavern" : scenePreset.loc;
     const resp = await fetch(`${API}/api/character`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, opening, start_location }),
     });
     const d = await resp.json();
     if (!resp.ok) {
@@ -243,7 +255,7 @@ function App() {
     setMessages([]);
     refreshSessions();
     // 自动触发 DM 开场（显式传 sessionId，避免 setState 异步导致闭包拿不到）
-    setTimeout(() => sendText("冒险开始！请描绘酒馆场景，介绍我面前的机会。", d.session_id), 100);
+    setTimeout(() => sendText("冒险开始！请描绘我醒来的场景与面前的机会。", d.session_id), 100);
   }
 
   async function sendText(text, sessionId = session?.id) {
@@ -357,6 +369,7 @@ function CreateWizard({ races, classes, onSubmit }) {
     name: "", race: "", class_name: "", method: "point-buy",
     abilities: { STR: 8, DEX: 8, CON: 8, INT: 8, WIS: 8, CHA: 8 },
     chosen_skills: [], skilled_skills: [], expertise_skills: [], background: "", feat: "",
+    scene: "tavern", customOpening: "",
   });
   const [raceDetail, setRaceDetail] = useState(null);
   const [classDetail, setClassDetail] = useState(null);
@@ -397,7 +410,7 @@ function CreateWizard({ races, classes, onSubmit }) {
     (step === 5 && form.chosen_skills.length === (classDetail?.skill_choices?.choose ?? 0) &&
       (form.feat !== "Skilled" || form.skilled_skills.length === 3) &&
       (!hasExpertise || form.expertise_skills.length === 2)) ||
-    (step === 6 && form.name.trim());
+    (step === 6 && form.name.trim() && (form.scene !== "custom" || form.customOpening.trim()));
 
   function spent() {
     return Object.values(form.abilities).reduce((s, v) => s + (PB_COST[v] ?? 0), 0);
@@ -688,6 +701,24 @@ function CreateWizard({ races, classes, onSubmit }) {
             <label>冒险者之名
               <input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="例如：铁锤·铜须" />
             </label>
+            <div className="scene-pick">
+              <label className="scene-title">🎬 初始场景（决定你的开局地点与身份）</label>
+              <div className="scene-grid">
+                {SCENE_PRESETS.map((s) => (
+                  <button key={s.key} className={`scene-card ${form.scene === s.key ? "on" : ""}`}
+                    onClick={() => set("scene", s.key)}>
+                    <b>{s.icon} {s.name}</b>
+                    <small>{s.text || "写下你自己的开局设定…"}</small>
+                  </button>
+                ))}
+              </div>
+              {form.scene === "custom" && (
+                <textarea className="scene-custom" rows={3} maxLength={300}
+                  value={form.customOpening}
+                  onChange={(e) => set("customOpening", e.target.value)}
+                  placeholder="自拟开局，例如：我是被流放的骑士，从北境雪原的村庄出发，背负着家族的旧誓…" />
+              )}
+            </div>
             <div className="final-summary">
               <div><b>{t(form.race)}</b> {t(form.class_name)} · Lv.1</div>
               <div>背景：{form.background ? t(form.background) : "—"} · 专长：{form.feat ? t(form.feat) : "—"}</div>

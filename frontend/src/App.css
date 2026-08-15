@@ -1371,6 +1371,74 @@ button.ghost {
   margin-top: 4px;
 }
 
+/* 初始场景选择 */
+.scene-pick {
+  margin-top: 14px;
+}
+
+.scene-title {
+  display: block;
+  margin-bottom: 6px;
+  color: #d8b46a;
+  font-size: 14px;
+}
+
+.scene-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.scene-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  text-align: left;
+  background: #241b11;
+  border: 1px solid #4a3a22;
+  border-radius: 10px;
+  color: #e8dcc0;
+  cursor: pointer;
+}
+
+.scene-card b {
+  font-size: 14px;
+}
+
+.scene-card small {
+  font-size: 11px;
+  color: #a89a78;
+  line-height: 1.5;
+}
+
+.scene-card.on {
+  border-color: #c9a227;
+  background: #2e2412;
+}
+
+.scene-card.on b {
+  color: #ffd76a;
+}
+
+.scene-custom {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #241b11;
+  border: 1px solid #4a3a22;
+  border-radius: 8px;
+  color: #f0e2c0;
+  font-family: "KaiTi", "STKaiti", serif;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.scene-custom:focus {
+  outline: none;
+  border-color: #c9a227;
+}
+
 .npc-identity {
   color: #a89a78;
   font-size: 13px;

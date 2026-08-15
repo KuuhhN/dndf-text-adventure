@@ -106,6 +106,8 @@ def create_character(
     feat: str = "",
     skilled_skills: list[str] | None = None,
     expertise_skills: list[str] | None = None,
+    opening: str = "",
+    start_location: str = "tavern",
 ) -> dict:
     race = db.get_race(race_name)
     cls = db.get_class(class_name)
@@ -234,11 +236,12 @@ def create_character(
         "quests": [],
         "gold": 0,
         "npcs": [],
-        "location": "tavern",
+        "location": start_location if start_location in ("tavern", "forest_edge", "mine_town", "capital", "coast_city") else "tavern",
         "lore": [],
         "world_state": {},
         "equipment": {"weapon": None, "armor": None, "trinket": None},
         "passives": [],
+        "opening": (opening or "").strip()[:300],
     }
     from .tools import init_feature_uses, init_passives  # 循环导入防护：tools 也 import character
     init_feature_uses(character)
