@@ -648,10 +648,17 @@ def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
         stats = _item_numeric_stats(character, equip_weapon)  # 旧存档无缓存时回退查 SHOP_ITEMS
     stats = stats or {}
     if stats.get("damage"):
-        weapon_dice = stats["damage"]
-        quality_bonus = stats.get("damage_bonus", 0) or {"精良": 1, "稀有": 2}.get(stats.get("quality", ""), 0)
-        trait_name = stats.get("trait_name", "")
-        trait_dice = stats.get("trait_damage", "")
+        # security（MEDIUM 清洗）：装备数值必须官方骰面，旧存档/篡改遗留非法骰面（如 1d999）不生效
+        if stats["damage"] not in db.official_damage_dice():
+            weapon_dice = "1d8"
+            quality_bonus = 0
+            trait_name = ""
+            trait_dice = ""
+        else:
+            weapon_dice = stats["damage"]
+            quality_bonus = stats.get("damage_bonus", 0) or {"精良": 1, "稀有": 2}.get(stats.get("quality", ""), 0)
+            trait_name = stats.get("trait_name", "")
+            trait_dice = stats.get("trait_damage", "")
     else:
         # 无有效武器数值：引擎默认 1d8，不信任 LLM 传参（security：防任意伤害/刷经验）
         weapon_dice = "1d8"

@@ -209,8 +209,10 @@ def equip_api(req: EquipRequest):
     try:
         result = equip_item(s["character"], req.item, req.slot)
         game.update_character(req.session_id, s["character"])
-    except (ValueError, KeyError) as e:
+    except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
+    except KeyError:
+        return JSONResponse({"error": "装备数据异常（旧存档兼容），请重新打开背包"}, status_code=400)
     return {"result": result, "character": s["character"]}
 
 
@@ -223,8 +225,10 @@ def unequip_api(req: UnequipRequest):
     try:
         result = unequip_item(s["character"], req.slot)
         game.update_character(req.session_id, s["character"])
-    except (ValueError, KeyError) as e:
+    except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
+    except KeyError:
+        return JSONResponse({"error": "装备数据异常（旧存档兼容），请重新打开背包"}, status_code=400)
     return {"result": result, "character": s["character"]}
 
 

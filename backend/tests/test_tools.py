@@ -1324,3 +1324,16 @@ def test_restore_item_keeps_trait():
     with patch("app.tools.roll", return_value={"rolls": [20], "total": 20, "mod": 0, "crit": True}):
         r = attack(c, "Goblin")
     assert r.get("trait") == "淬毒", "重装后淬毒词条仍生效"
+
+
+def test_attack_rejects_non_official_dice():
+    """security MEDIUM 回归：旧存档/篡改遗留非法骰面（1d999）攻击不生效，回退 1d8。"""
+    from unittest.mock import patch
+    c = create_character("DiceCat", "Human", "Fighter")
+    encounter(c, ["Goblin"])
+    # 篡改装备缓存为非法骰面（模拟旧存档/数据篡改）
+    c.setdefault("equipment_stats", {})["weapon"] = {"damage": "1d999", "damage_bonus": 999}
+    with patch("app.tools.roll", return_value={"rolls": [10], "total": 10, "mod": 0, "crit": False}):
+        r = attack(c, "Goblin")
+    assert r["weapon_dice"] == "1d8", "非法骰面必须回退 1d8"
+    assert r["quality_bonus"] == 0 and not r.get("trait"), "非法数值不携带加成"
