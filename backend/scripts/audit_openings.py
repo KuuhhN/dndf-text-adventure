@@ -7,7 +7,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.tools import WORLD_MAP
 
-# 前端 SCENE_PRESETS 的开局文本（与 App.jsx 一致，防 drift 用正则提取校验）
+# 前端 SCENE_PRESETS 的开局文本（手工维护副本；若改 App.jsx 的 SCENE_PRESETS 需同步此处）
 SCENE_PRESETS = [
     {"key": "tavern", "name": "醉龙酒馆", "loc": "tavern",
      "text": "你在艾瑟兰村的醉龙酒馆醒来：炉火噼啪、酒客喧哗，冒险的故事从一张吧台开始。"},
@@ -106,7 +106,8 @@ def main():
     for k, v in WORLD_MAP.items():
         print(f"- {k}（{v['name']}）shop={v['shop_level']} 邻接={v['neighbors']}")
     print("\n结论：", "全部通过" if not graph_problems and not opening_problems else "存在问题，见上")
+    return 1 if (graph_problems or [p for p in opening_problems if "为空" not in p]) else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

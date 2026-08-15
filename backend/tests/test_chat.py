@@ -207,3 +207,15 @@ def test_system_prompt_injects_location_and_neighbors():
     c2 = create_character("LocTest2", "Human", "Fighter", start_location="tavern")
     prompt2 = build_system_prompt(c2)
     assert "醉龙酒馆" in prompt2 and "村庄集市" in prompt2
+
+
+def test_system_prompt_location_fallback():
+    """旧存档无 location 字段/未知 key：fallback 酒馆，不抛错。"""
+    from app.chat import build_system_prompt
+    c = {"name": "Legacy", "race": "Human", "class_name": "Fighter",
+         "abilities": {}, "skills": {}, "inventory": [], "lore": [], "world_state": {}}
+    prompt = build_system_prompt(c)
+    assert "醉龙酒馆" in prompt, "无 location 字段应 fallback 酒馆"
+    c["location"] = "unknown_zone"
+    prompt2 = build_system_prompt(c)
+    assert "当前位置" not in prompt2, "未知区域跳过注入（容错不抛错）"
