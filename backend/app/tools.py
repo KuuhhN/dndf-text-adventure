@@ -107,6 +107,32 @@ def _lore(character: dict) -> list[dict]:
     return character.setdefault("lore", [])
 
 
+def _world_state(character: dict) -> dict:
+    return character.setdefault("world_state", {})
+
+
+def update_world_state(character: dict, key: str, value: str, description: str = "") -> dict:
+    """更新世界状态（动态追踪：主线进度/势力好感/关键关系等）。key-value 形式，全量注入 prompt。"""
+    key = (key or "").strip()
+    if not key:
+        raise ValueError("状态键不能为空")
+    if len(key) > 30:
+        raise ValueError("状态键过长（≤30 字）")
+    value = (value or "").strip()
+    if not value:
+        raise ValueError("状态值不能为空")
+    if len(value) > 200:
+        raise ValueError("状态值过长（≤200 字）")
+    if len(description or "") > 200:
+        raise ValueError("状态说明过长（≤200 字）")
+    ws = _world_state(character)
+    if key not in ws and len(ws) >= 50:  # 上限防 prompt 膨胀
+        raise ValueError("世界状态已达上限（50 条）")
+    ws[key] = {"value": value, "description": description}
+    return {"type": "world_state", "key": key, "state": ws[key],
+            "note": f"世界状态更新：{key} = {value}"}
+
+
 def record_lore(character: dict, title: str, category: str, content: str, keywords: str = "") -> dict:
     """记录/更新世界观词条（地理/势力/历史/魔法/宗教）。叙事中出现重要的世界设定信息时调用。"""
     title = (title or "").strip()
@@ -822,6 +848,22 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "update_world_state",
+            "description": "更新世界状态（动态追踪：主线进度/势力好感/关键关系/重要时限等）。世界状态变化时调用，LLM 每轮都能看到全部状态；再次调用同一 key 覆盖旧值。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {"type": "string", "description": "状态键（≤30 字），如 主线进度 / 灰烬教团好感"},
+                    "value": {"type": "string", "description": "状态值（≤200 字），如 已进入矿洞深处"},
+                    "description": {"type": "string", "description": "可选说明（≤200 字）"},
+                },
+                "required": ["key", "value"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "record_lore",
             "description": "记录/更新世界观词条（地理/势力/历史/魔法/宗教）。叙事中出现重要的世界设定信息（地名来历、势力关系、历史事件、传说魔法等）时必须调用；关键词用于后续对话自动唤起该词条。",
             "parameters": {
@@ -981,6 +1023,8 @@ def execute_tool(name: str, args: dict, character: dict | None = None) -> dict:
         if name == "post_quest":
             return post_quest(character, args["title"], args.get("description", ""),
                               args.get("reward", ""), args.get("status", "available"))
+        if name == "update_world_state":
+            return update_world_state(character, args["key"], args["value"], args.get("description", ""))
         if name == "record_lore":
             return record_lore(character, args["title"], args["category"], args["content"],
                                args.get("keywords", ""))

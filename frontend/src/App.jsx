@@ -962,6 +962,10 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
             className={c.lore?.length > 0 ? "notice" : ""}>
             📖 世界书{c.lore?.length > 0 ? `·${c.lore.length}` : ""}
           </button>
+          <button onClick={() => openModal("state")} disabled={busy} title="世界状态（主线进度/势力好感）"
+            className={Object.keys(c.world_state || {}).length > 0 ? "notice" : ""}>
+            🌐 局势{Object.keys(c.world_state || {}).length > 0 ? `·${Object.keys(c.world_state).length}` : ""}
+          </button>
           <button onClick={() => openModal("npcs")} disabled={busy} title="认识的角色档案"
             className={c.npcs?.length > 0 ? "notice" : ""}>
             🧑🤝🧑 认识的人{c.npcs?.length > 0 ? `·${c.npcs.length}` : ""}
@@ -995,6 +999,7 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
                 {modal === "npcs" && "🧑🤝🧑 认识的人"}
                 {modal === "map" && "🌍 世界地图"}
                 {modal === "lore" && "📖 世界书"}
+                {modal === "state" && "🌐 世界局势"}
                 {modal === "skills" && "🎯 技能"}
               </h3>
               <button className="modal-close" onClick={() => setModal(null)}>✕</button>
@@ -1036,6 +1041,20 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
                     </div>
                     <button className="modal-btn" onClick={() => buyItem(it.name)}
                       disabled={buying || (c.gold ?? 0) < it.price}>{buying ? "购买中…" : "购买"}</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {modal === "state" && (
+              <div className="modal-body">
+                {!Object.keys(c.world_state || {}).length && <p className="modal-empty">世界局势平静——主线推进、势力态度变化时 DM 会自动更新这里。</p>}
+                {Object.entries(c.world_state || {}).map(([k, v]) => (
+                  <div key={k} className="modal-item">
+                    <div>
+                      <b>{k}</b>
+                      <div className="modal-desc">📌 {v.value || ""}</div>
+                      {v.description && <div className="modal-desc lore-kw">💬 {v.description}</div>}
+                    </div>
                   </div>
                 ))}
               </div>

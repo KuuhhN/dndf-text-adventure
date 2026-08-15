@@ -278,6 +278,46 @@ def test_change_location_flow():
     assert all(1 <= it["level"] <= 3 for it in SHOP_ITEMS) if SHOP_ITEMS else True
 
 
+def test_world_state_flow():
+    """世界状态：新增/覆盖/校验/上限/路由 + prompt 全量注入。"""
+    from app.tools import update_world_state, execute_tool
+    from app.chat import build_system_prompt
+    c = create_character("T", "Human", "Fighter")
+    r = update_world_state(c, "主线进度", "已进入幽影森林", "调查失踪商队")
+    assert r["key"] == "主线进度" and c["world_state"]["主线进度"]["value"] == "已进入幽影森林"
+    # 覆盖旧值
+    r2 = update_world_state(c, "主线进度", "已抵达矿洞镇")
+    assert c["world_state"]["主线进度"]["value"] == "已抵达矿洞镇" and len(c["world_state"]) == 1
+    # 校验
+    try:
+        update_world_state(c, "", "值")
+        assert False, "应报错"
+    except ValueError as e:
+        assert "状态键不能为空" in str(e)
+    try:
+        update_world_state(c, "键" * 40, "值")
+        assert False, "应报错"
+    except ValueError as e:
+        assert "状态键过长" in str(e)
+    try:
+        update_world_state(c, "键", "")
+        assert False, "应报错"
+    except ValueError as e:
+        assert "状态值不能为空" in str(e)
+    # execute_tool 路由
+    r3 = execute_tool("update_world_state", {"key": "灰烬教团好感", "value": "敌视"}, c)
+    assert r3["key"] == "灰烬教团好感" and len(c["world_state"]) == 2
+    # prompt 全量注入
+    prompt = build_system_prompt(c)
+    assert "当前世界状态" in prompt and "主线进度" in prompt and "已抵达矿洞镇" in prompt
+    assert "灰烬教团好感" in prompt and "敌视" in prompt
+    # 旧角色无 world_state 兼容（无状态段注入；铁律文本中的提及不算）
+    c2 = create_character("T2", "Human", "Fighter")
+    del c2["world_state"]
+    p2 = build_system_prompt(c2)
+    assert "## 当前世界状态" not in p2 and "- 主线进度" not in p2
+
+
 def test_record_lore_flow():
     """世界观词条：新增 + 同名更新 + 分类白名单 + 限长 + execute_tool 路由。"""
     from app.tools import record_lore, execute_tool, LORE_CATEGORIES

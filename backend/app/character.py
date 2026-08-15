@@ -236,6 +236,7 @@ def create_character(
         "npcs": [],
         "location": "tavern",
         "lore": [],
+        "world_state": {},
         "passives": [],
     }
     from .tools import init_feature_uses, init_passives  # 循环导入防护：tools 也 import character
