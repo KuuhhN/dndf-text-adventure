@@ -322,7 +322,7 @@ function App() {
           send={send}
           sendText={sendText}
           bottomRef={bottomRef}
-          onNewGame={() => setSession(null)}
+          onNewGame={() => { setSession(null); setInCombat(false); }}
         />
       )}
       <div id="runtime-error" className="runtime-error" />
