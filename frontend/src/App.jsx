@@ -806,7 +806,8 @@ function formatTool(evt) {
 
 function GameView({ character, messages, input, busy, inCombat, setInput, send, sendText, bottomRef, onNewGame, sessionId, onCharacterUpdate }) {
   const c = character;
-  const [modal, setModal] = useState(null); // null | "quests" | "shop" | "skills" | "map" | "lore"
+  const [modal, setModal] = useState(null); // null | "character" | "bag" | "world" | "quests" | "shop" | "npcs"
+  const [worldTab, setWorldTab] = useState("map"); // 世界面板子页签：map | lore | state
   const [shopItems, setShopItems] = useState([]);
   const [worldMap, setWorldMap] = useState({});
   const [modalMsg, setModalMsg] = useState("");
@@ -823,10 +824,11 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
       fetch(`${API}/api/shop`).then((r) => r.json()).then((d) => setShopItems(d.items || []))
         .catch(() => setModalMsg("❌ 商店加载失败，请重试"));
     }
-    if (name === "map" && Object.keys(worldMap).length === 0) {
+    if ((name === "world" || name === "map") && Object.keys(worldMap).length === 0) {
       fetch(`${API}/api/world`).then((r) => r.json()).then((d) => setWorldMap(d.map || {}))
         .catch(() => setModalMsg("❌ 地图加载失败，请重试"));
     }
+    if (name === "world") setWorldTab("map"); // 每次打开回到地图页签
     setModal(name);
   }
 
@@ -910,50 +912,6 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
             <div className="bar">❤️ HP {c.current_hp}/{c.max_hp} · Lv.{c.level} · XP {c.xp}</div>
             <div className="bar">🛡️ AC {c.ac} · 熟练 +{c.proficiency_bonus}</div>
           </div>
-          {c.passives?.length > 0 && (
-            <div className="passive-bar">
-              <h3>🛡️ 被动能力 <small>（自动生效）</small></h3>
-              {c.passives.map((p) => {
-                const spec = PASSIVES_UI[p];
-                if (!spec) return null;
-                return (
-                  <div key={p} className="passive-item" title={`来源：${spec.src}`}>
-                    <b>{spec.zh}</b>
-                    <small>{spec.desc}</small>
-                  </div>
-                );
-              })}
-              {c.expertise_skills?.length > 0 && (
-                <div className="passive-item">
-                  <b>专精</b>
-                  <small>{c.expertise_skills.map(t).join("、")} 检定熟练加值翻倍（自动）</small>
-                </div>
-              )}
-            </div>
-          )}
-          {c.combat?.feature_uses && Object.keys(c.combat.feature_uses).length > 0 && (
-            <div className="ability-bar">
-              <h3>⚡ 可用能力 <small>（用了即消耗）</small></h3>
-              {Object.entries(c.combat.feature_uses).map(([key, u]) => {
-                const spec = FEATURES_UI[key];
-                if (!spec) return null;
-                const spent = u.total != null && u.remaining <= 0;
-                return (
-                  <button
-                    key={key}
-                    className={`ability-btn ${spent ? "spent" : ""}`}
-                    disabled={spent}
-                    title={spec.hint || ""}
-                    onClick={() => !busy && sendText(`我使用能力【${spec.zh}】${spec.hint || ""}！`)}
-                  >
-                    <b>{spec.zh}</b>
-                    <small>{spec.action}</small>
-                    {u.total != null ? <em>{spent ? "已用完" : `×${u.remaining}`}·{spec.rest}</em> : <em>{spec.rest}</em>}
-                  </button>
-                );
-              })}
-            </div>
-          )}
           {(c.combat?.enemies?.length > 0) && (
             <div className="enemies">
               <h3>⚔️ 敌人</h3>
@@ -971,44 +929,6 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
               ))}
             </div>
           )}
-        {c.equipment && (Object.values(c.equipment).some(Boolean) ? (
-          <div className="equipment">
-            <h3>⚔️ 已装备</h3>
-            {Object.entries(c.equipment).map(([slot, item]) => (
-              <div key={slot} className="equip-row">
-                <span className="equip-slot">{EQUIP_SLOT_ZH[slot]}</span>
-                {item ? (
-                  <>
-                    <span className="equip-item">{item}</span>
-                    <button className="equip-btn" onClick={() => unequipItem(slot)} disabled={busy}>卸下</button>
-                  </>
-                ) : (
-                  <span className="equip-empty">空</span>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : null)}
-        {c.inventory?.length > 0 && (
-          <div className="inventory">
-            <h3>🎒 背包 {c.gold > 0 && <small>· 💰 {c.gold} 金币</small>}</h3>
-            {c.inventory.map((it, i) => (
-              <div key={i} className="inv-item" title={it.description || ""}>
-                <span className="inv-name">{it.name}</span>
-                {it.quantity > 1 && <span className="inv-qty">×{it.quantity}</span>}
-                {it.description && <span className="inv-desc">{it.description}</span>}
-                <div className="inv-equip">
-                  {EQUIP_SLOTS.map((slot) => (
-                    <button key={slot} className="equip-btn" title={`装备到${EQUIP_SLOT_ZH[slot]}栏`}
-                      disabled={busy} onClick={() => equipItem(it.name, slot)}>
-                      {EQUIP_ICONS[slot]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
         </div>
         <div className="abilities">
           {Object.entries(c.abilities).map(([ab, val]) => (
@@ -1035,6 +955,12 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
       </main>
       <footer className="input-bar">
         <div className="quick-actions">
+          <button onClick={() => openModal("character")} disabled={busy} title="角色面板（被动/能力/技能/装备）"
+            className="qa-main">👤 角色</button>
+          <button onClick={() => openModal("bag")} disabled={busy} title="背包（物品/装备/金币）"
+            className="qa-main">🎒 背包</button>
+          <button onClick={() => openModal("world")} disabled={busy} title="世界面板（地图/世界书/局势）"
+            className="qa-main">🌍 世界</button>
           <button onClick={() => openModal("quests")} disabled={busy} title="告示栏与待办"
             className={hasQuestNotice ? "notice" : ""}>
             📜 任务{hasQuestNotice ? `·${availableQuests.length}` : ""}
@@ -1043,20 +969,10 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
             title={hasShop ? `商店（${curLoc?.name}，${shopLevel} 级商货）` : "当前区域没有商店，去集市/城镇看看"}>
             🏪 商店{!hasShop ? "🔒" : ""}
           </button>
-          <button onClick={() => openModal("map")} disabled={busy} title="世界地图">🌍 地图</button>
-          <button onClick={() => openModal("lore")} disabled={busy} title="世界观词条（地理/势力/历史）"
-            className={c.lore?.length > 0 ? "notice" : ""}>
-            📖 世界书{c.lore?.length > 0 ? `·${c.lore.length}` : ""}
-          </button>
-          <button onClick={() => openModal("state")} disabled={busy} title="世界状态（主线进度/势力好感）"
-            className={Object.keys(c.world_state || {}).length > 0 ? "notice" : ""}>
-            🌐 局势{Object.keys(c.world_state || {}).length > 0 ? `·${Object.keys(c.world_state).length}` : ""}
-          </button>
           <button onClick={() => openModal("npcs")} disabled={busy} title="认识的角色档案"
             className={c.npcs?.length > 0 ? "notice" : ""}>
             🧑🤝🧑 认识的人{c.npcs?.length > 0 ? `·${c.npcs.length}` : ""}
           </button>
-          <button onClick={() => openModal("skills")} disabled={busy} title="查看全部技能">🎯 技能</button>
           <button onClick={() => !busy && sendText("我想掷一个 D20 骰子。")} disabled={busy} title="任何时候都可检定">🎲 掷骰</button>
           <button onClick={() => !busy && sendText("我环顾四周，仔细观察周围的环境。")} disabled={busy || inCombat} title="非战斗时可用（新环境/可疑线索）">🔍 察觉</button>
           <button onClick={() => !busy && sendText("我压低身形，尝试潜行靠近。")} disabled={busy || inCombat} title="非战斗时可用（需视野遮挡）">🕶️ 潜行</button>
@@ -1080,13 +996,12 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
           <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
               <h3>
+                {modal === "character" && "👤 角色"}
+                {modal === "bag" && "🎒 背包"}
+                {modal === "world" && "🌍 世界"}
                 {modal === "quests" && "📜 任务"}
                 {modal === "shop" && "🏪 商店"}
                 {modal === "npcs" && "🧑🤝🧑 认识的人"}
-                {modal === "map" && "🌍 世界地图"}
-                {modal === "lore" && "📖 世界书"}
-                {modal === "state" && "🌐 世界局势"}
-                {modal === "skills" && "🎯 技能"}
               </h3>
               <button className="modal-close" onClick={() => setModal(null)}>✕</button>
             </div>
@@ -1131,61 +1046,182 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
                 ))}
               </div>
             )}
-            {modal === "state" && (
+            {modal === "character" && (
               <div className="modal-body">
-                {!Object.keys(c.world_state || {}).length && <p className="modal-empty">世界局势平静——主线推进、势力态度变化时 DM 会自动更新这里。</p>}
-                {Object.entries(c.world_state || {}).map(([k, v]) => (
-                  <div key={k} className="modal-item">
-                    <div>
-                      <b>{k}</b>
-                      <div className="modal-desc">📌 {v.value || ""}</div>
-                      {v.description && <div className="modal-desc lore-kw">💬 {v.description}</div>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {modal === "lore" && (
-              <div className="modal-body">
-                {!c.lore?.length && <p className="modal-empty">世界书还是空的——探索中 DM 会自动记录地理、势力、历史等重要设定。</p>}
-                {(c.lore || []).map((e, i) => (
-                  <div key={i} className="modal-item">
-                    <div>
-                      <b>{e.title}</b> <span className={`lore-cat ${e.category}`}>{LORE_CAT_ZH[e.category] || e.category}</span>
-                      <div className="modal-desc">{e.content}</div>
-                      {e.keywords?.length > 0 && (
-                        <div className="modal-desc lore-kw">🔑 {e.keywords.join("、")}</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {modal === "map" && (
-              <div className="modal-body">
-                <p className="modal-empty">当前：📍 {curLoc?.name || "未知"}{curLoc?.desc ? `——${curLoc.desc}` : ""}</p>
-                {Object.entries(worldMap).map(([key, loc]) => {
-                  const here = key === c.location;
-                  const reachable = (curLoc?.neighbors || []).includes(key);
-                  return (
-                    <div key={key} className={`modal-item map-row ${here ? "here" : ""}`}>
-                      <div>
-                        <b>{loc.name}</b>
-                        {loc.shop_level > 0 && <span className="shop-price"> 🏪{loc.shop_level}级</span>}
-                        {here && <span className="map-tag here-tag">📍 当前</span>}
-                        {!here && reachable && <span className="map-tag">🛤️ 可前往</span>}
-                        {!here && !reachable && <span className="map-tag far">非邻接</span>}
-                        <div className="modal-desc">{loc.desc}</div>
+                {c.passives?.length > 0 && (
+                  <>
+                    <h4>🛡️ 被动能力 <small>（自动生效）</small></h4>
+                    {c.passives.map((p) => {
+                      const spec = PASSIVES_UI[p];
+                      if (!spec) return null;
+                      return (
+                        <div key={p} className="modal-item" title={`来源：${spec.src}`}>
+                          <div><b>{spec.zh}</b><div className="modal-desc">{spec.desc}</div></div>
+                        </div>
+                      );
+                    })}
+                    {c.expertise_skills?.length > 0 && (
+                      <div className="modal-item">
+                        <div><b>专精</b><div className="modal-desc">{c.expertise_skills.map(t).join("、")} 检定熟练加值翻倍（自动）</div></div>
                       </div>
-                      {reachable && !here && (
-                        <button className="modal-btn"
-                          onClick={() => { setModal(null); sendText(`我前往【${loc.name}】。`); }}>
-                          前往
-                        </button>
-                      )}
+                    )}
+                  </>
+                )}
+                {c.combat?.feature_uses && Object.keys(c.combat.feature_uses).length > 0 && (
+                  <>
+                    <h4>⚡ 可用能力 <small>（用了即消耗）</small></h4>
+                    <div className="modal-feature-grid">
+                      {Object.entries(c.combat.feature_uses).map(([key, u]) => {
+                        const spec = FEATURES_UI[key];
+                        if (!spec) return null;
+                        const spent = u.total != null && u.remaining <= 0;
+                        return (
+                          <button key={key}
+                            className={`ability-btn ${spent ? "spent" : ""}`}
+                            disabled={spent}
+                            title={spec.hint || ""}
+                            onClick={() => !busy && sendText(`我使用能力【${spec.zh}】${spec.hint || ""}！`)}>
+                            <b>{spec.zh}</b>
+                            <small>{spec.action}</small>
+                            {u.total != null ? <em>{spent ? "已用完" : `×${u.remaining}`}·{spec.rest}</em> : <em>{spec.rest}</em>}
+                          </button>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  </>
+                )}
+                <h4>🎯 技能 <small>（点击发起检定）</small></h4>
+                <div className="skills-grid">
+                  {Object.entries(c.skills).map(([sk, val]) => (
+                    <button key={sk} className="modal-skill" title={SKILL_HINTS[sk] || ""}
+                      onClick={() => {
+                        setModal(null);
+                        sendText(`我想过个【${t(sk)}】检定（${SKILL_HINTS[sk] || ""}），看看能发现什么`);
+                      }}>
+                      <span className={c.proficient_skills?.includes(sk) ? "prof" : ""}>
+                        {t(sk)}{c.proficient_skills?.includes(sk) ? "✓" : ""}
+                      </span>
+                      <small>{SKILL_HINTS[sk] || ""}</small>
+                      <em className={val >= 0 ? "pos" : "neg"}>{val >= 0 ? "+" : ""}{val}</em>
+                    </button>
+                  ))}
+                </div>
+                <h4>⚔️ 已装备</h4>
+                {c.equipment && Object.values(c.equipment).some(Boolean) ? (
+                  Object.entries(c.equipment).map(([slot, item]) => (
+                    <div key={slot} className="modal-item">
+                      <div><b>{EQUIP_SLOT_ZH[slot]}</b>{item ? <span className="equip-item"> · {item}</span> : <span className="equip-empty"> 空</span>}</div>
+                      {item && <button className="modal-btn" onClick={() => unequipItem(slot)} disabled={busy}>卸下</button>}
+                    </div>
+                  ))
+                ) : (
+                  <p className="modal-empty">尚未装备任何物品——打开背包，用 ⚔️🛡️✨ 装备到对应栏位。</p>
+                )}
+              </div>
+            )}
+            {modal === "bag" && (
+              <div className="modal-body">
+                <div className="shop-gold">💰 金币：{c.gold ?? 0}</div>
+                <h4>⚔️ 已装备</h4>
+                {c.equipment && Object.values(c.equipment).some(Boolean) ? (
+                  Object.entries(c.equipment).map(([slot, item]) => (
+                    <div key={slot} className="modal-item">
+                      <div><b>{EQUIP_SLOT_ZH[slot]}</b>{item ? <span className="equip-item"> · {item}</span> : <span className="equip-empty"> 空</span>}</div>
+                      {item && <button className="modal-btn" onClick={() => unequipItem(slot)} disabled={busy}>卸下</button>}
+                    </div>
+                  ))
+                ) : (
+                  <p className="modal-empty">尚未装备任何物品。</p>
+                )}
+                <h4>🎒 物品{c.inventory?.length ? `（${c.inventory.length} 类）` : "（空）"}</h4>
+                {!c.inventory?.length && <p className="modal-empty">背包空空如也——战利品、购买与搜刮会自动入库。</p>}
+                {(c.inventory || []).map((it, i) => (
+                  <div key={i} className="modal-item" title={it.description || ""}>
+                    <div>
+                      <b>{it.name}</b>
+                      {it.quantity > 1 && <span className="inv-qty"> ×{it.quantity}</span>}
+                      {it.description && <div className="modal-desc">{it.description}</div>}
+                    </div>
+                    <div className="inv-equip">
+                      {EQUIP_SLOTS.map((slot) => (
+                        <button key={slot} className="equip-btn" title={`装备到${EQUIP_SLOT_ZH[slot]}栏`}
+                          disabled={busy} onClick={() => equipItem(it.name, slot)}>
+                          {EQUIP_ICONS[slot]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {modal === "world" && (
+              <div className="modal-body">
+                <div className="world-tabs">
+                  <button className={`world-tab ${worldTab === "map" ? "on" : ""}`} onClick={() => setWorldTab("map")}>🌍 地图</button>
+                  <button className={`world-tab ${worldTab === "lore" ? "on" : ""}`} onClick={() => setWorldTab("lore")}>
+                    📖 世界书{c.lore?.length ? `·${c.lore.length}` : ""}
+                  </button>
+                  <button className={`world-tab ${worldTab === "state" ? "on" : ""}`} onClick={() => setWorldTab("state")}>
+                    🌐 局势{Object.keys(c.world_state || {}).length ? `·${Object.keys(c.world_state).length}` : ""}
+                  </button>
+                </div>
+                {worldTab === "map" && (
+                  <>
+                    <p className="modal-empty">当前：📍 {curLoc?.name || "未知"}{curLoc?.desc ? `——${curLoc.desc}` : ""}</p>
+                    {Object.entries(worldMap).map(([key, loc]) => {
+                      const here = key === c.location;
+                      const reachable = (curLoc?.neighbors || []).includes(key);
+                      return (
+                        <div key={key} className={`modal-item map-row ${here ? "here" : ""}`}>
+                          <div>
+                            <b>{loc.name}</b>
+                            {loc.shop_level > 0 && <span className="shop-price"> 🏪{loc.shop_level}级</span>}
+                            {here && <span className="map-tag here-tag">📍 当前</span>}
+                            {!here && reachable && <span className="map-tag">🛤️ 可前往</span>}
+                            {!here && !reachable && <span className="map-tag far">非邻接</span>}
+                            <div className="modal-desc">{loc.desc}</div>
+                          </div>
+                          {reachable && !here && (
+                            <button className="modal-btn"
+                              onClick={() => { setModal(null); sendText(`我前往【${loc.name}】。`); }}>
+                              前往
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+                {worldTab === "lore" && (
+                  <>
+                    {!c.lore?.length && <p className="modal-empty">世界书还是空的——探索中 DM 会自动记录地理、势力、历史等重要设定。</p>}
+                    {(c.lore || []).map((e, i) => (
+                      <div key={i} className="modal-item">
+                        <div>
+                          <b>{e.title}</b> <span className={`lore-cat ${e.category}`}>{LORE_CAT_ZH[e.category] || e.category}</span>
+                          <div className="modal-desc">{e.content}</div>
+                          {e.keywords?.length > 0 && (
+                            <div className="modal-desc lore-kw">🔑 {e.keywords.join("、")}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+                {worldTab === "state" && (
+                  <>
+                    {!Object.keys(c.world_state || {}).length && <p className="modal-empty">世界局势平静——主线推进、势力态度变化时 DM 会自动更新这里。</p>}
+                    {Object.entries(c.world_state || {}).map(([k, v]) => (
+                      <div key={k} className="modal-item">
+                        <div>
+                          <b>{k}</b>
+                          <div className="modal-desc">📌 {v.value || ""}</div>
+                          {v.description && <div className="modal-desc lore-kw">💬 {v.description}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             )}
             {modal === "npcs" && (
@@ -1201,23 +1237,6 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
                       {n.notes && <div className="modal-desc">💬 {n.notes}</div>}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-            {modal === "skills" && (
-              <div className="modal-body skills-grid">
-                {Object.entries(c.skills).map(([sk, val]) => (
-                  <button key={sk} className="modal-skill" title={SKILL_HINTS[sk] || ""}
-                    onClick={() => {
-                      setModal(null);
-                      sendText(`我想过个【${t(sk)}】检定（${SKILL_HINTS[sk] || ""}），看看能发现什么`);
-                    }}>
-                    <span className={c.proficient_skills?.includes(sk) ? "prof" : ""}>
-                      {t(sk)}{c.proficient_skills?.includes(sk) ? "✓" : ""}
-                    </span>
-                    <small>{SKILL_HINTS[sk] || ""}</small>
-                    <em className={val >= 0 ? "pos" : "neg"}>{val >= 0 ? "+" : ""}{val}</em>
-                  </button>
                 ))}
               </div>
             )}

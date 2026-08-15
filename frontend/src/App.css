@@ -1199,6 +1199,45 @@ button.ghost {
   font-weight: 700;
 }
 
+.quick-actions button.qa-main {
+  border-color: #c9a227;
+  background: #3a2f15;
+  color: #ffd76a;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 7px 18px;
+}
+
+.world-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.world-tab {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid #4a3a22;
+  background: #241b11;
+  color: #a89a78;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.world-tab.on {
+  border-color: #c9a227;
+  background: #3a2f15;
+  color: #ffd76a;
+}
+
+.modal-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 /* 弹窗（任务/商店/技能） */
 .modal-overlay {
   position: fixed;
