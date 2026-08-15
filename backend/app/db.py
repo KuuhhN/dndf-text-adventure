@@ -59,14 +59,14 @@ def official_damage_dice() -> frozenset[str]:
             rows = c.execute('SELECT data FROM "equipment"').fetchall()
         for r in rows:
             dmg = json.loads(r["data"]).get("damage")
-            if isinstance(dmg, dict) and dmg.get("damage_dice"):
-                dice.add(dmg["damage_dice"])
+            if isinstance(dmg, dict) and dmg.get("damage_dice") and "d" in dmg["damage_dice"]:
+                dice.add(dmg["damage_dice"])  # 过滤非骰面（如吹箭 damage_dice="1"）
         _OFFICIAL_DAMAGE = frozenset(dice)
     return _OFFICIAL_DAMAGE
 
 
 def official_armor_ac() -> frozenset[int]:
-    """官方护甲 AC 加值白名单（SRD armor_class.base - 10，含盾牌 +2）。"""
+    """官方护甲 AC 加值白名单（SRD armor_class.base - 10 仅取 ≥10 的甲，含盾牌 +2）。"""
     global _OFFICIAL_AC
     if _OFFICIAL_AC is None:
         acs = set()
@@ -74,8 +74,8 @@ def official_armor_ac() -> frozenset[int]:
             rows = c.execute('SELECT data FROM "equipment"').fetchall()
         for r in rows:
             ac = json.loads(r["data"]).get("armor_class")
-            if isinstance(ac, dict) and isinstance(ac.get("base"), int):
-                acs.add(ac["base"] - 10)
+            if isinstance(ac, dict) and isinstance(ac.get("base"), int) and ac["base"] >= 10:
+                acs.add(ac["base"] - 10)  # 盾牌 base=2 不在此列（单独补）
         acs.add(2)  # 盾牌（SRD 盾牌 armor_class 为 {base:2, dex_bonus:false}，直接是加值）
         _OFFICIAL_AC = frozenset(acs)
     return _OFFICIAL_AC

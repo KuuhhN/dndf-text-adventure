@@ -280,7 +280,7 @@ def test_change_location_flow():
 
 def test_ai_generated_equipment():
     """AI 生成特定装备：官方数值白名单校验（合法通过/非法拒绝）+ 装备生效 + 品质加成。"""
-    from app.tools import add_item, equip_item, attack, encounter, execute_tool
+    from app.tools import add_item, equip_item, attack, encounter, execute_tool, unequip_item
     # 合法：祖传战斧（官方 1d12）+ 稀有品质
     c = create_character("T", "Human", "Fighter")
     r = add_item(c, "祖传战斧", "家族传承的巨斧，斧柄刻着祖训", 1, damage="1d12", quality="稀有")
@@ -316,6 +316,34 @@ def test_ai_generated_equipment():
     # 非法经 execute_tool 转错误结果
     r4 = execute_tool("add_item", {"name": "神兵", "damage": "1d999"}, c3)
     assert isinstance(r4, dict) and "error" in r4
+    # 白名单边界（review should-fix）：非骰面 '1'（吹箭）与负 AC 均拒绝
+    from app.tools import add_item as ai
+    from app import db as _db
+    assert "1" not in _db.official_damage_dice(), "非骰面不应在白名单"
+    try:
+        ai(c3, "吹箭", "测试", 1, damage="1")
+        assert False, "应报错"
+    except ValueError:
+        pass
+    assert -8 not in _db.official_armor_ac(), "负 AC 不应在白名单"
+    try:
+        ai(c3, "负甲", "测试", 1, ac_bonus=-8)
+        assert False, "应报错"
+    except ValueError:
+        pass
+    # 旧存档兼容：无 equipment_stats 时替换/卸下 AC 回退正常（走 SHOP_ITEMS 回退）
+    c5 = create_character("T5", "Human", "Fighter")
+    base5 = c5["ac"]
+    add_item(c5, "皮甲", "轻便护甲", 1)
+    equip_item(c5, "皮甲", "armor")
+    assert c5["ac"] == base5 + 1
+    del c5["equipment_stats"]  # 模拟旧存档无缓存
+    add_item(c5, "链甲衫", "重型", 1)
+    equip_item(c5, "链甲衫", "armor")
+    assert c5["ac"] == base5 + 3, "旧存档替换应正确回退皮甲加成"
+    del c5["equipment_stats"]
+    unequip_item(c5, "armor")
+    assert c5["ac"] == base5, "旧存档卸下应完全回退"
 
 
 def test_equipment_stats():

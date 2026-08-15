@@ -357,10 +357,10 @@ def equip_item(character: dict, item: str, slot: str) -> dict:
     found["quantity"] -= 1
     if found["quantity"] <= 0:
         items.remove(found)
-    # 旧装备回背包（合并数量）+ 回退其 AC 加成（读 stats 缓存）
+    # 旧装备回背包（合并数量）+ 回退其 AC 加成（stats 缓存缺失时回退查 SHOP_ITEMS——旧存档兼容）
     if replaced and replaced != item:
         add_item(character, replaced, quantity=1)
-        old_stats = (character.get("equipment_stats") or {}).get(slot) or {}
+        old_stats = (character.get("equipment_stats") or {}).get(slot) or _item_numeric_stats(character, replaced)
         character["ac"] = character.get("ac", 10) - old_stats.get("ac_bonus", 0)
     equip[slot] = item
     # 缓存装备数值（背包物品字段 > SHOP_ITEMS）
@@ -391,7 +391,8 @@ def unequip_item(character: dict, slot: str) -> dict:
     if not item:
         raise ValueError(f"{EQUIP_SLOT_ZH[slot]}槽位没有装备")
     equip[slot] = None
-    stats = (character.get("equipment_stats") or {}).get(slot) or {}
+    # stats 缓存缺失时回退查 SHOP_ITEMS（旧存档兼容），再回退 AC
+    stats = (character.get("equipment_stats") or {}).get(slot) or _item_numeric_stats(character, item)
     ac_bonus = stats.get("ac_bonus", 0)
     if ac_bonus:
         character["ac"] = character.get("ac", 10) - ac_bonus
