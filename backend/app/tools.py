@@ -659,6 +659,10 @@ def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
             quality_bonus = stats.get("damage_bonus", 0) or {"精良": 1, "稀有": 2}.get(stats.get("quality", ""), 0)
             trait_name = stats.get("trait_name", "")
             trait_dice = stats.get("trait_damage", "")
+            # security（MEDIUM 残留修复）：词条骰面同样必须官方（1d999 词条不生效）
+            if trait_dice and trait_dice not in db.official_damage_dice():
+                trait_name = ""
+                trait_dice = ""
     else:
         # 无有效武器数值：引擎默认 1d8，不信任 LLM 传参（security：防任意伤害/刷经验）
         weapon_dice = "1d8"

@@ -1337,3 +1337,17 @@ def test_attack_rejects_non_official_dice():
         r = attack(c, "Goblin")
     assert r["weapon_dice"] == "1d8", "非法骰面必须回退 1d8"
     assert r["quality_bonus"] == 0 and not r.get("trait"), "非法数值不携带加成"
+
+
+def test_attack_rejects_non_official_trait_dice():
+    """security MEDIUM 残留回归：词条骰面 1d999 不生效（词条整体丢弃）。"""
+    from unittest.mock import patch
+    c = create_character("TraitDiceCat", "Human", "Fighter")
+    encounter(c, ["Goblin"])
+    c.setdefault("equipment_stats", {})["weapon"] = {"damage": "1d8", "trait_name": "爆裂",
+                                                     "trait_damage": "1d999"}
+    with patch("app.tools.roll", return_value={"rolls": [10], "total": 10, "mod": 0, "crit": False}):
+        r = attack(c, "Goblin")
+    assert r["weapon_dice"] == "1d8"
+    assert not r.get("trait"), "非法词条骰面必须丢弃词条"
+    assert "trait_proc" not in r
