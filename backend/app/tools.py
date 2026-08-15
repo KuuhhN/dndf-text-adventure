@@ -99,6 +99,69 @@ def _npcs(character: dict) -> list[dict]:
     return character.setdefault("npcs", [])
 
 
+# 艾瑟兰大陆世界地图（引擎常量）：区域 key、中文名、简介、商店等级（0=无商店，1=村庄货，2=城镇货，3=都城货）、邻接区域
+# 邻接图即活动范围约束：不能瞬移，只能走到相邻区域；进度解锁天然由图结构表达
+WORLD_MAP = {
+    "tavern": {
+        "name": "醉龙酒馆", "desc": "冒险者聚集的起点，艾瑟兰村的中心。",
+        "shop_level": 1, "neighbors": ["village_market", "forest_edge"],
+    },
+    "village_market": {
+        "name": "村庄集市", "desc": "艾瑟兰村的露天集市，日用百货与冒险小物件。",
+        "shop_level": 1, "neighbors": ["tavern", "farmland"],
+    },
+    "farmland": {
+        "name": "郊野农场", "desc": "村庄外的农田与牧场，近来野猪成群。",
+        "shop_level": 0, "neighbors": ["village_market", "forest_edge"],
+    },
+    "forest_edge": {
+        "name": "幽影森林边缘", "desc": "遮天蔽日的古林，传闻有盗匪与野兽出没。",
+        "shop_level": 0, "neighbors": ["tavern", "farmland", "mine_town"],
+    },
+    "mine_town": {
+        "name": "矿洞镇", "desc": "铁匠铺与矿道交错的小镇，装备更精良。",
+        "shop_level": 2, "neighbors": ["forest_edge", "mage_tower", "capital"],
+    },
+    "mage_tower": {
+        "name": "灰塔法师塔", "desc": "法师塔底层的商栈，出售奇物与卷轴。",
+        "shop_level": 2, "neighbors": ["mine_town", "capital"],
+    },
+    "capital": {
+        "name": "王都艾瑟兰", "desc": "大陆都城，皇家市场应有尽有。",
+        "shop_level": 3, "neighbors": ["mine_town", "mage_tower", "coast_city"],
+    },
+    "coast_city": {
+        "name": "海岸城", "desc": "海港商埠，走私货与异域珍宝的集散地。",
+        "shop_level": 2, "neighbors": ["capital", "dragon_peaks"],
+    },
+    "dragon_peaks": {
+        "name": "龙眠山脉", "desc": "终年积雪的龙族故地，危险与宝藏并存。",
+        "shop_level": 0, "neighbors": ["coast_city"],
+    },
+}
+
+
+def _location(character: dict) -> str:
+    return character.setdefault("location", "tavern")
+
+
+def change_location(character: dict, target: str) -> dict:
+    """场景切换（引擎状态）：只能移动到与当前区域相邻的区域，禁止瞬移。"""
+    target = (target or "").strip()
+    if target not in WORLD_MAP:
+        raise ValueError(f"未知区域: {target}")
+    current = _location(character)
+    if target == current:
+        return {"type": "location", "location": target, "note": "你已经在这里了"}
+    if current not in WORLD_MAP or target not in WORLD_MAP[current]["neighbors"]:
+        via = "、".join(WORLD_MAP[current]["neighbors"]) if current in WORLD_MAP else "？"
+        raise ValueError(f"无法直接到达【{WORLD_MAP[target]['name']}】，需先经过：{via}")
+    character["location"] = target
+    loc = WORLD_MAP[target]
+    return {"type": "location", "location": target,
+            "note": f"你来到了【{loc['name']}】：{loc['desc']}"}
+
+
 def register_npc(character: dict, name: str, identity: str = "", location: str = "",
                  relationship: str = "", notes: str = "") -> dict:
     """记录/更新 NPC 档案：遇到有名字或重要互动的角色时调用。同名更新（位置/关系/备注刷新）。"""
@@ -131,22 +194,25 @@ def register_npc(character: dict, name: str, identity: str = "", location: str =
 
 # 酒馆/商店精选商品（D&D 5e 官方价格，中文名；价格由引擎定，防前端改包）
 SHOP_ITEMS = [
-    {"name": "治疗药水", "price": 50, "desc": "饮下恢复 2d4+2 点生命值"},
-    {"name": "长剑", "price": 15, "desc": "军用近战武器，1d8 挥砍（可双手 1d10）"},
-    {"name": "匕首", "price": 2, "desc": "灵巧近战/投掷武器，1d4 穿刺"},
-    {"name": "短弓", "price": 25, "desc": "远程武器，1d6 穿刺（射程 24/96 米）"},
-    {"name": "皮甲", "price": 10, "desc": "轻型护甲，AC 11 + 敏捷调整值"},
-    {"name": "链甲衫", "price": 50, "desc": "中型护甲，AC 13 + 敏捷（至多 +2）"},
-    {"name": "盾牌", "price": 10, "desc": "AC +2"},
-    {"name": "盗贼工具", "price": 25, "desc": "开锁与解除陷阱检定时可获熟练加值"},
-    {"name": "法术卷轴（燃烧之手）", "price": 75, "desc": "1 环法术卷轴，读咒释放（需仪式时间）"},
-    {"name": "照明杖", "price": 2, "desc": "点燃后照明 36 米，持续 1 小时"},
-    {"name": "火把", "price": 1, "desc": "照明 18 米"},
-    {"name": "绳子（15 米）", "price": 1, "desc": "麻绳，攀爬/捆缚用"},
-    {"name": "口粮（1 天）", "price": 5, "desc": "冒险口粮，一天份"},
-    {"name": "水袋", "price": 2, "desc": "装 1.8 升水"},
-    {"name": "放大镜", "price": 100, "desc": "观察细小物体时优势（辨识物品/文书）"},
-    {"name": "圣水（小瓶）", "price": 25, "desc": "对不死生物投掷造成 2d6 光耀伤害"},
+    # 等级 1：村庄货（酒馆/村庄集市）
+    {"name": "治疗药水", "price": 50, "level": 1, "desc": "饮下恢复 2d4+2 点生命值"},
+    {"name": "匕首", "price": 2, "level": 1, "desc": "灵巧近战/投掷武器，1d4 穿刺"},
+    {"name": "皮甲", "price": 10, "level": 1, "desc": "轻型护甲，AC 11 + 敏捷调整值"},
+    {"name": "盾牌", "price": 10, "level": 1, "desc": "AC +2"},
+    {"name": "盗贼工具", "price": 25, "level": 1, "desc": "开锁与解除陷阱检定时可获熟练加值"},
+    {"name": "火把", "price": 1, "level": 1, "desc": "照明 18 米"},
+    {"name": "口粮（1 天）", "price": 5, "level": 1, "desc": "冒险口粮，一天份"},
+    {"name": "水袋", "price": 2, "level": 1, "desc": "装 1.8 升水"},
+    # 等级 2：城镇货（矿洞镇/法师塔/海岸城）
+    {"name": "长剑", "price": 15, "level": 2, "desc": "军用近战武器，1d8 挥砍（可双手 1d10）"},
+    {"name": "短弓", "price": 25, "level": 2, "desc": "远程武器，1d6 穿刺（射程 24/96 米）"},
+    {"name": "链甲衫", "price": 50, "level": 2, "desc": "中型护甲，AC 13 + 敏捷（至多 +2）"},
+    {"name": "照明杖", "price": 2, "level": 2, "desc": "点燃后照明 36 米，持续 1 小时"},
+    {"name": "绳子（15 米）", "price": 1, "level": 2, "desc": "麻绳，攀爬/捆缚用"},
+    {"name": "圣水（小瓶）", "price": 25, "level": 2, "desc": "对不死生物投掷造成 2d6 光耀伤害"},
+    # 等级 3：都城货（王都）
+    {"name": "法术卷轴（燃烧之手）", "price": 75, "level": 3, "desc": "1 环法术卷轴，读咒释放（需仪式时间）"},
+    {"name": "放大镜", "price": 100, "level": 3, "desc": "观察细小物体时优势（辨识物品/文书）"},
 ]
 
 
@@ -710,6 +776,20 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "change_location",
+            "description": "场景/区域切换。玩家从一个区域前往另一个区域时调用（如走出酒馆去集市）；只能移动到相邻区域，禁止瞬移；新区域描述以工具返回为准。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target": {"type": "string", "description": "目标区域 key（tavern/village_market/farmland/forest_edge/mine_town/mage_tower/capital/coast_city/dragon_peaks）"},
+                },
+                "required": ["target"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "register_npc",
             "description": "记录/更新 NPC 档案。玩家遇到有名字或重要互动的角色（酒馆老板、委托者、敌人首领等）时必须调用，记录身份/位置/关系/备注；再次遇到同一 NPC 时调用以更新关系与位置。",
             "parameters": {
@@ -838,6 +918,8 @@ def execute_tool(name: str, args: dict, character: dict | None = None) -> dict:
         if name == "post_quest":
             return post_quest(character, args["title"], args.get("description", ""),
                               args.get("reward", ""), args.get("status", "available"))
+        if name == "change_location":
+            return change_location(character, args["target"])
         if name == "register_npc":
             return register_npc(character, args["name"], args.get("identity", ""),
                                 args.get("location", ""), args.get("relationship", ""), args.get("notes", ""))

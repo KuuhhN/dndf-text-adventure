@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from . import db, game
 from .chat import game_chat
 from .character import create_character
-from .tools import SHOP_ITEMS, accept_quest, buy_item
+from .tools import SHOP_ITEMS, WORLD_MAP, accept_quest, buy_item
 
 app = FastAPI(title="DNDF Text Adventure API")
 
@@ -125,6 +125,12 @@ def get_session(sid: str):
     if not s:
         return JSONResponse({"error": "会话不存在"}, status_code=404)
     s["in_combat"] = bool(s["character"].get("combat", {}).get("enemies"))
+    # 当前区域详情（前端商店按钮/地图弹窗用）
+    loc_key = s["character"].get("location", "tavern")
+    loc = WORLD_MAP.get(loc_key, {})
+    s["location"] = {"key": loc_key, "name": loc.get("name", ""),
+                     "desc": loc.get("desc", ""), "shop_level": loc.get("shop_level", 0),
+                     "neighbors": loc.get("neighbors", [])}
     return s
 
 
@@ -135,8 +141,14 @@ def sessions():
 
 @app.get("/api/shop")
 def shop():
-    """商店商品清单（引擎定价）。"""
+    """商店商品清单（引擎定价，含等级）。"""
     return {"items": SHOP_ITEMS}
+
+
+@app.get("/api/world")
+def world():
+    """世界地图：全部区域（名称/简介/商店等级/邻接）。"""
+    return {"map": WORLD_MAP, "start": "tavern"}
 
 
 def _load_session_or_404(sid: str):

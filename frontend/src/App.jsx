@@ -761,16 +761,26 @@ function formatTool(evt) {
 
 function GameView({ character, messages, input, busy, inCombat, setInput, send, sendText, bottomRef, onNewGame, sessionId, onCharacterUpdate }) {
   const c = character;
-  const [modal, setModal] = useState(null); // null | "quests" | "shop" | "skills"
+  const [modal, setModal] = useState(null); // null | "quests" | "shop" | "skills" | "map"
   const [shopItems, setShopItems] = useState([]);
+  const [worldMap, setWorldMap] = useState({});
   const [modalMsg, setModalMsg] = useState("");
   const [buying, setBuying] = useState(false); // 购买请求中（防双击重复扣款）
+
+  // 当前区域（character.location + 世界地图）
+  const curLoc = worldMap[c.location] || null;
+  const shopLevel = curLoc?.shop_level || 0;
+  const hasShop = shopLevel > 0;
 
   function openModal(name) {
     setModalMsg("");
     if (name === "shop" && shopItems.length === 0) {
       fetch(`${API}/api/shop`).then((r) => r.json()).then((d) => setShopItems(d.items || []))
         .catch(() => setModalMsg("❌ 商店加载失败，请重试"));
+    }
+    if (name === "map" && Object.keys(worldMap).length === 0) {
+      fetch(`${API}/api/world`).then((r) => r.json()).then((d) => setWorldMap(d.map || {}))
+        .catch(() => setModalMsg("❌ 地图加载失败，请重试"));
     }
     setModal(name);
   }
@@ -824,6 +834,9 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
           <div className="meta">
             {t(c.race)} {t(c.class)} · Lv.{c.level}
           </div>
+          {curLoc && (
+            <div className="meta loc">📍 {curLoc.name}{shopLevel > 0 ? ` · 🏪 ${shopLevel} 级商货` : " · 无商店"}</div>
+          )}
           <div className="bars">
             <div className="bar">❤️ HP {c.current_hp}/{c.max_hp} · Lv.{c.level} · XP {c.xp}</div>
             <div className="bar">🛡️ AC {c.ac} · 熟练 +{c.proficiency_bonus}</div>
@@ -931,7 +944,11 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
             className={hasQuestNotice ? "notice" : ""}>
             📜 任务{hasQuestNotice ? `·${availableQuests.length}` : ""}
           </button>
-          <button onClick={() => openModal("shop")} disabled={busy} title="商店（金币购买）">🏪 商店</button>
+          <button onClick={() => openModal("shop")} disabled={busy || !hasShop}
+            title={hasShop ? `商店（${curLoc?.name}，${shopLevel} 级商货）` : "当前区域没有商店，去集市/城镇看看"}>
+            🏪 商店{!hasShop ? "🔒" : ""}
+          </button>
+          <button onClick={() => openModal("map")} disabled={busy} title="世界地图">🌍 地图</button>
           <button onClick={() => openModal("npcs")} disabled={busy} title="认识的角色档案"
             className={c.npcs?.length > 0 ? "notice" : ""}>
             🧑🤝🧑 认识的人{c.npcs?.length > 0 ? `·${c.npcs.length}` : ""}
@@ -963,6 +980,7 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
                 {modal === "quests" && "📜 任务"}
                 {modal === "shop" && "🏪 商店"}
                 {modal === "npcs" && "🧑🤝🧑 认识的人"}
+                {modal === "map" && "🌍 世界地图"}
                 {modal === "skills" && "🎯 技能"}
               </h3>
               <button className="modal-close" onClick={() => setModal(null)}>✕</button>
@@ -995,8 +1013,8 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
             )}
             {modal === "shop" && (
               <div className="modal-body">
-                <div className="shop-gold">💰 金币：{c.gold ?? 0}</div>
-                {shopItems.map((it, i) => (
+                <div className="shop-gold">💰 金币：{c.gold ?? 0} · 📍 {curLoc?.name || ""}（{shopLevel} 级商货）</div>
+                {shopItems.filter((it) => it.level <= shopLevel).map((it, i) => (
                   <div key={i} className="modal-item">
                     <div>
                       <b>{it.name}</b> <span className="shop-price">{it.price} 金币</span>
@@ -1006,6 +1024,33 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
                       disabled={buying || (c.gold ?? 0) < it.price}>{buying ? "购买中…" : "购买"}</button>
                   </div>
                 ))}
+              </div>
+            )}
+            {modal === "map" && (
+              <div className="modal-body">
+                <p className="modal-empty">当前：📍 {curLoc?.name || "未知"}{curLoc?.desc ? `——${curLoc.desc}` : ""}</p>
+                {Object.entries(worldMap).map(([key, loc]) => {
+                  const here = key === c.location;
+                  const reachable = (curLoc?.neighbors || []).includes(key);
+                  return (
+                    <div key={key} className={`modal-item map-row ${here ? "here" : ""}`}>
+                      <div>
+                        <b>{loc.name}</b>
+                        {loc.shop_level > 0 && <span className="shop-price"> 🏪{loc.shop_level}级</span>}
+                        {here && <span className="map-tag here-tag">📍 当前</span>}
+                        {!here && reachable && <span className="map-tag">🛤️ 可前往</span>}
+                        {!here && !reachable && <span className="map-tag far">🔒 未到达</span>}
+                        <div className="modal-desc">{loc.desc}</div>
+                      </div>
+                      {reachable && !here && (
+                        <button className="modal-btn"
+                          onClick={() => { setModal(null); sendText(`我前往【${loc.name}】。`); }}>
+                          前往
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
             {modal === "npcs" && (

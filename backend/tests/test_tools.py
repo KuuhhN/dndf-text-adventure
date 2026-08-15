@@ -246,6 +246,38 @@ def test_add_item_gold_accumulates():
     assert c["gold"] == 80
 
 
+def test_change_location_flow():
+    """区域切换：初始在酒馆；相邻可达；非相邻/未知区域/原地报错或幂等。"""
+    from app.tools import SHOP_ITEMS, WORLD_MAP, change_location, execute_tool
+    c = create_character("T", "Human", "Fighter")
+    assert c["location"] == "tavern"
+    assert WORLD_MAP["tavern"]["shop_level"] == 1  # 酒馆有 1 级商店
+    # 相邻：酒馆 -> 村庄集市
+    r = change_location(c, "village_market")
+    assert r["location"] == "village_market" and "你来到了" in r["note"]
+    assert c["location"] == "village_market"
+    # 原地幂等
+    r2 = change_location(c, "village_market")
+    assert "已经在这里" in r2["note"]
+    # 非相邻：集市 -> 王都（需经过矿洞镇/灰塔）报错
+    try:
+        change_location(c, "capital")
+        assert False, "非相邻应报错"
+    except ValueError as e:
+        assert "无法直接到达" in str(e)
+    # 未知区域
+    try:
+        change_location(c, "moon_city")
+        assert False, "应报错"
+    except ValueError as e:
+        assert "未知区域" in str(e)
+    # execute_tool 路由
+    r3 = execute_tool("change_location", {"target": "farmland"}, c)  # 集市 -> 农场相邻
+    assert r3["location"] == "farmland" and c["location"] == "farmland"
+    # 商店分级数据完整：每件商品有 1-3 级
+    assert all(1 <= it["level"] <= 3 for it in SHOP_ITEMS) if SHOP_ITEMS else True
+
+
 def test_register_npc_add_and_update():
     """NPC 记录：新增 + 同名更新（关系/位置刷新），空名报错。"""
     c = create_character("T", "Human", "Fighter")
