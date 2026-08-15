@@ -317,6 +317,7 @@ function App() {
           messages={messages}
           input={input}
           busy={busy}
+          inCombat={inCombat}
           setInput={setInput}
           send={send}
           sendText={sendText}
@@ -756,7 +757,7 @@ function formatTool(evt) {
   }
 }
 
-function GameView({ character, messages, input, busy, setInput, send, sendText, bottomRef, onNewGame }) {
+function GameView({ character, messages, input, busy, inCombat, setInput, send, sendText, bottomRef, onNewGame }) {
   const c = character;
   return (
     <div className="game">
