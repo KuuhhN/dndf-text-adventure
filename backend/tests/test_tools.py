@@ -304,17 +304,18 @@ def test_equipment_stats():
     encounter(c3, ["Goblin"])
     r3 = attack(c3, "Goblin")
     assert r3["weapon_dice"] == "1d8" and r3["quality_bonus"] == 1
-    # 稀有匕首：1d4 +2 + 淬毒词条（命中时 trait_proc）
+    # 稀有匕首：1d4 +2 + 淬毒词条（mock 骰子保证命中，防假绿——review should-fix）
+    from unittest.mock import patch
     c4 = create_character("T4", "Human", "Fighter")
-    c4["abilities"]["STR"] = 8  # 低力量保证命中由骰子决定（用 patch）
     add_item(c4, "稀有匕首", "淬毒黑曜", 1)
     equip_item(c4, "稀有匕首", "weapon")
     encounter(c4, ["Goblin"])
-    r4 = attack(c4, "Goblin")
+    with patch("app.tools.roll", return_value={"rolls": [20], "total": 20, "crit": False, "fumble": False}):
+        r4 = attack(c4, "Goblin")
     assert r4["weapon_dice"] == "1d4" and r4["quality_bonus"] == 2
-    assert r4["trait"] == "淬毒"
-    if r4["hit"]:
-        assert "trait_proc" in r4 and r4["damage"] >= 3  # 1d4 基础 +2 品质 + 1d4 毒素
+    assert r4["trait"] == "淬毒" and r4["hit"] is True
+    assert "trait_proc" in r4 and r4["trait_proc"].startswith("淬毒 +")
+    assert r4["damage"] >= 3  # 1d4 基础 +2 品质 + 1d4 毒素
     # 护甲 AC：皮甲 +1、盾牌 +2、替换回退、卸下还原
     c5 = create_character("T5", "Human", "Fighter")
     base5 = c5["ac"]
