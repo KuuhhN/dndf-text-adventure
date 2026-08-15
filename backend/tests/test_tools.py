@@ -1351,3 +1351,19 @@ def test_attack_rejects_non_official_trait_dice():
     assert r["weapon_dice"] == "1d8"
     assert not r.get("trait"), "非法词条骰面必须丢弃词条"
     assert "trait_proc" not in r
+
+
+def test_attack_rejects_non_official_damage_bonus():
+    """security MEDIUM 同源回归：damage_bonus=9999 不生效（按品质档位回退）。"""
+    from unittest.mock import patch
+    c = create_character("BonusCat", "Human", "Fighter")
+    encounter(c, ["Goblin"])
+    c.setdefault("equipment_stats", {})["weapon"] = {"damage": "1d8", "damage_bonus": 9999}
+    with patch("app.tools.roll", return_value={"rolls": [10], "total": 10, "mod": 0, "crit": False}):
+        r = attack(c, "Goblin")
+    assert r["quality_bonus"] == 0, "非法加成必须置 0（无品质时）"
+    # 合法值仍生效
+    c["equipment_stats"]["weapon"] = {"damage": "1d8", "damage_bonus": 2, "quality": "稀有"}
+    with patch("app.tools.roll", return_value={"rolls": [10], "total": 10, "mod": 0, "crit": False}):
+        r2 = attack(c, "Goblin")
+    assert r2["quality_bonus"] == 2, "合法加成 2 仍生效"

@@ -656,7 +656,11 @@ def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
             trait_dice = ""
         else:
             weapon_dice = stats["damage"]
-            quality_bonus = stats.get("damage_bonus", 0) or {"精良": 1, "稀有": 2}.get(stats.get("quality", ""), 0)
+            # security（MEDIUM 同源修复）：damage_bonus 仅允许 0/1/2（对应品质档位），旧存档/篡改非法加成不生效
+            raw_bonus = stats.get("damage_bonus", 0)
+            if raw_bonus not in (0, 1, 2):
+                raw_bonus = 0
+            quality_bonus = raw_bonus or {"精良": 1, "稀有": 2}.get(stats.get("quality", ""), 0)
             trait_name = stats.get("trait_name", "")
             trait_dice = stats.get("trait_damage", "")
             # security（MEDIUM 残留修复）：词条骰面同样必须官方（1d999 词条不生效）
