@@ -99,6 +99,44 @@ def _npcs(character: dict) -> list[dict]:
     return character.setdefault("npcs", [])
 
 
+# 世界观词条分类（引擎白名单）
+LORE_CATEGORIES = ("geography", "faction", "history", "magic", "religion")
+
+
+def _lore(character: dict) -> list[dict]:
+    return character.setdefault("lore", [])
+
+
+def record_lore(character: dict, title: str, category: str, content: str, keywords: str = "") -> dict:
+    """记录/更新世界观词条（地理/势力/历史/魔法/宗教）。叙事中出现重要的世界设定信息时调用。"""
+    title = (title or "").strip()
+    if not title:
+        raise ValueError("词条标题不能为空")
+    if len(title) > 50:
+        raise ValueError("词条标题过长（≤50 字）")
+    category = (category or "").strip()
+    if category not in LORE_CATEGORIES:
+        raise ValueError(f"词条分类必须是：{'/'.join(LORE_CATEGORIES)}")
+    content = (content or "").strip()
+    if not content:
+        raise ValueError("词条内容不能为空")
+    if len(content) > 500:
+        raise ValueError("词条内容过长（≤500 字）")
+    if len(keywords or "") > 200:
+        raise ValueError("关键词过长（≤200 字）")
+    kw = [k.strip() for k in keywords.split(",") if k.strip()] if keywords else []
+    lore = _lore(character)
+    for e in lore:
+        if e["title"] == title:  # 同名更新（内容/分类/关键词刷新）
+            e["category"] = category
+            e["content"] = content
+            e["keywords"] = kw
+            return {"type": "lore", "entry": e, "note": f"已更新词条【{title}】"}
+    entry = {"title": title, "category": category, "content": content, "keywords": kw}
+    lore.append(entry)
+    return {"type": "lore", "entry": entry, "note": f"已记录词条【{title}】"}
+
+
 # 艾瑟兰大陆世界地图（引擎常量）：区域 key、中文名、简介、商店等级（0=无商店，1=村庄货，2=城镇货，3=都城货）、邻接区域
 # 邻接图即活动范围约束：不能瞬移，只能走到相邻区域；进度解锁天然由图结构表达
 WORLD_MAP = {
@@ -781,6 +819,23 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "record_lore",
+            "description": "记录/更新世界观词条（地理/势力/历史/魔法/宗教）。叙事中出现重要的世界设定信息（地名来历、势力关系、历史事件、传说魔法等）时必须调用；关键词用于后续对话自动唤起该词条。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "词条标题，如 幽影森林"},
+                    "category": {"type": "string", "enum": ["geography", "faction", "history", "magic", "religion"], "description": "分类：geography=地理/faction=势力/history=历史/magic=魔法/religion=宗教"},
+                    "content": {"type": "string", "description": "词条内容（1-3 句话，≤500 字）"},
+                    "keywords": {"type": "string", "description": "触发关键词，逗号分隔，如 森林,幽影,盗匪"},
+                },
+                "required": ["title", "category", "content"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "change_location",
             "description": "场景/区域切换。玩家从一个区域前往另一个区域时调用（如走出酒馆去集市）；只能移动到相邻区域，禁止瞬移；新区域描述以工具返回为准。",
             "parameters": {
@@ -923,6 +978,9 @@ def execute_tool(name: str, args: dict, character: dict | None = None) -> dict:
         if name == "post_quest":
             return post_quest(character, args["title"], args.get("description", ""),
                               args.get("reward", ""), args.get("status", "available"))
+        if name == "record_lore":
+            return record_lore(character, args["title"], args["category"], args["content"],
+                               args.get("keywords", ""))
         if name == "change_location":
             return change_location(character, args["target"])
         if name == "register_npc":

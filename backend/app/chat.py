@@ -40,8 +40,11 @@ _BASE_PROMPT = """你是《龙与地下城 5e》文字冒险游戏的地下城�
    已认识的角色记录在 character.npcs：再次出场时称呼、关系、记忆必须与其档案一致，严禁遗忘或改口。
 8. 场景/区域切换（离开当前区域去另一个地方）时，必须调用 change_location 工具（目标 key
    见 character.location 与区域列表），只能去相邻区域，禁止瞬移；场景描述以工具返回为准。
-9. 用中文叙事，第二人称"你"，营造 D&D 奇幻冒险氛围。叙事简洁但生动，一次 2-4 句话。
-10. 只有玩家明确说要攻击时才算战斗；普通对话不主动攻击。
+9. 叙事中出现重要的世界设定信息（地名来历、势力关系、历史事件、传说魔法、宗教习俗等）
+   时，必须调用 record_lore 记录词条（title/category/content/keywords）；已记录词条再次出现时
+   内容必须与其一致，不得冲突或遗忘。
+10. 用中文叙事，第二人称"你"，营造 D&D 奇幻冒险氛围。叙事简洁但生动，一次 2-4 句话。
+11. 只有玩家明确说要攻击时才算战斗；普通对话不主动攻击。
 
 ## 叙事风格
 - 多用感官细节（光影、气味、声响），让场景活起来；对话中的 NPC 要有鲜明个性。
@@ -73,12 +76,37 @@ _PASSIVE_NOTES = {
 }
 
 
-def build_system_prompt(character: dict) -> str:
+def build_system_prompt(character: dict, lore_hits: list[dict] | None = None) -> str:
     base = _BASE_PROMPT.format(character=json.dumps(character, ensure_ascii=False))
     passive_notes = [_PASSIVE_NOTES[p] for p in character.get("passives", []) if p in _PASSIVE_NOTES]
     if passive_notes:
         base += "\n\n## 你的被动能力（自动生效，叙事中必须体现）\n" + "\n".join(passive_notes)
+    if lore_hits:
+        # 世界观词条注入：对话中出现关键词时带出相关设定，防止遗忘/设定漂移
+        lines = []
+        for e in lore_hits:
+            cat_zh = {"geography": "地理", "faction": "势力", "history": "历史",
+                      "magic": "魔法", "religion": "宗教"}.get(e.get("category", ""), e.get("category", ""))
+            lines.append(f"- 【{cat_zh}】{e.get('title', '')}：{e.get('content', '')}")
+        base += "\n\n## 世界设定（当前对话相关，叙事必须与此一致，不得冲突）\n" + "\n".join(lines)
     return base
+
+
+def _lore_hits(character: dict, history: list[dict], message: str) -> list[dict]:
+    """扫描最近历史与当前消息，命中词条标题/关键词的世界观词条（按录入顺序返回）。"""
+    entries = character.get("lore", [])
+    if not entries:
+        return []
+    text = message + "\n" + "\n".join(
+        h.get("content", "") for h in history[-12:] if h.get("role") in ("user", "assistant")
+    )
+    low = text.lower()
+    hits = []
+    for e in entries:
+        keys = [e.get("title", "")] + list(e.get("keywords", []) or [])
+        if any(k and k.lower() in low for k in keys):
+            hits.append(e)
+    return hits
 
 
 async def game_chat(session_id: str, message: str) -> AsyncIterator[dict]:
@@ -89,7 +117,7 @@ async def game_chat(session_id: str, message: str) -> AsyncIterator[dict]:
         return
     character = session["character"]
 
-    messages = [{"role": "system", "content": build_system_prompt(character)}]
+    messages = [{"role": "system", "content": build_system_prompt(character, _lore_hits(character, session["history"], message))}]
     for h in session["history"][-12:]:  # 最近 12 条历史
         if h["role"] in ("user", "assistant"):
             # 过滤 LLM 幻觉写进文本的假工具调用（如 "call attack(...)"）

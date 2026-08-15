@@ -278,6 +278,68 @@ def test_change_location_flow():
     assert all(1 <= it["level"] <= 3 for it in SHOP_ITEMS) if SHOP_ITEMS else True
 
 
+def test_record_lore_flow():
+    """世界观词条：新增 + 同名更新 + 分类白名单 + 限长 + execute_tool 路由。"""
+    from app.tools import record_lore, execute_tool, LORE_CATEGORIES
+    c = create_character("T", "Human", "Fighter")
+    r = record_lore(c, "幽影森林", "geography", "遮天蔽日的古林，盗匪与野兽出没。", "森林,幽影,盗匪")
+    assert r["entry"]["title"] == "幽影森林" and c["lore"][0]["category"] == "geography"
+    assert c["lore"][0]["keywords"] == ["森林", "幽影", "盗匪"]
+    # 同名更新：内容/关键词刷新，不新增
+    r2 = record_lore(c, "幽影森林", "geography", "林中有失落的古战场。", "森林,古战场")
+    assert len(c["lore"]) == 1 and "已更新" in r2["note"]
+    assert c["lore"][0]["content"] == "林中有失落的古战场。"
+    # 分类白名单
+    try:
+        record_lore(c, "测试", "weird_cat", "内容")
+        assert False, "应报错"
+    except ValueError as e:
+        assert "分类" in str(e)
+    # 限长
+    try:
+        record_lore(c, "长标题" * 30, "history", "内容")
+        assert False, "应报错"
+    except ValueError as e:
+        assert "标题过长" in str(e)
+    try:
+        record_lore(c, "空内容", "history", "")
+        assert False, "应报错"
+    except ValueError as e:
+        assert "内容不能为空" in str(e)
+    # execute_tool 路由
+    r3 = execute_tool("record_lore", {"title": "铁王座之争", "category": "history",
+                                      "content": "两百年前的王位战争。", "keywords": "铁王座,王位战争"}, c)
+    assert r3["entry"]["title"] == "铁王座之争" and len(c["lore"]) == 2
+    # 分类枚举与工具 schema 一致
+    assert set(LORE_CATEGORIES) == {"geography", "faction", "history", "magic", "religion"}
+
+
+def test_lore_keyword_injection():
+    """关键词注入：消息/历史命中词条标题或关键词时，system prompt 带出词条内容。"""
+    from app.chat import build_system_prompt, _lore_hits
+    from app.tools import record_lore
+    c = create_character("T", "Human", "Fighter")
+    record_lore(c, "幽影森林", "geography", "遮天蔽日的古林，盗匪出没。", "森林,盗匪")
+    record_lore(c, "灰烬教团", "faction", "崇拜龙焰的秘密教团。", "龙焰")
+    # 消息命中关键词
+    hits = _lore_hits(c, [], "我想去幽影森林看看")
+    assert [h["title"] for h in hits] == ["幽影森林"]
+    # 历史命中另一个词条（两词条同时注入）
+    history = [{"role": "assistant", "content": "教团的龙焰仪式需要祭品。"}]
+    hits2 = _lore_hits(c, history, "我继续打听")
+    assert "灰烬教团" in [h["title"] for h in hits2]
+    # build_system_prompt 注入格式
+    prompt = build_system_prompt(c, hits2)
+    assert "世界设定" in prompt and "灰烬教团" in prompt and "龙焰" in prompt
+    # 无关消息不注入
+    hits3 = _lore_hits(c, [], "我想买点干粮")
+    assert hits3 == []
+    # 旧角色无 lore 字段兼容
+    c2 = create_character("T2", "Human", "Fighter")
+    del c2["lore"]
+    assert _lore_hits(c2, [], "随便聊聊") == []
+
+
 def test_register_npc_add_and_update():
     """NPC 记录：新增 + 同名更新（关系/位置刷新），空名报错。"""
     c = create_character("T", "Human", "Fighter")

@@ -3,6 +3,15 @@ import "./App.css";
 
 const API = "http://localhost:8000";
 
+// 世界观词条分类中文名（世界书弹窗）
+const LORE_CAT_ZH = {
+  geography: "地理",
+  faction: "势力",
+  history: "历史",
+  magic: "魔法",
+  religion: "宗教",
+};
+
 // ---- 中文化映射（展示层；value/key 保持英文供 SRD 数据与工具调用使用）----
 const ZH = {
   // 种族
@@ -761,7 +770,7 @@ function formatTool(evt) {
 
 function GameView({ character, messages, input, busy, inCombat, setInput, send, sendText, bottomRef, onNewGame, sessionId, onCharacterUpdate }) {
   const c = character;
-  const [modal, setModal] = useState(null); // null | "quests" | "shop" | "skills" | "map"
+  const [modal, setModal] = useState(null); // null | "quests" | "shop" | "skills" | "map" | "lore"
   const [shopItems, setShopItems] = useState([]);
   const [worldMap, setWorldMap] = useState({});
   const [modalMsg, setModalMsg] = useState("");
@@ -949,6 +958,10 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
             🏪 商店{!hasShop ? "🔒" : ""}
           </button>
           <button onClick={() => openModal("map")} disabled={busy} title="世界地图">🌍 地图</button>
+          <button onClick={() => openModal("lore")} disabled={busy} title="世界观词条（地理/势力/历史）"
+            className={c.lore?.length > 0 ? "notice" : ""}>
+            📖 世界书{c.lore?.length > 0 ? `·${c.lore.length}` : ""}
+          </button>
           <button onClick={() => openModal("npcs")} disabled={busy} title="认识的角色档案"
             className={c.npcs?.length > 0 ? "notice" : ""}>
             🧑🤝🧑 认识的人{c.npcs?.length > 0 ? `·${c.npcs.length}` : ""}
@@ -981,6 +994,7 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
                 {modal === "shop" && "🏪 商店"}
                 {modal === "npcs" && "🧑🤝🧑 认识的人"}
                 {modal === "map" && "🌍 世界地图"}
+                {modal === "lore" && "📖 世界书"}
                 {modal === "skills" && "🎯 技能"}
               </h3>
               <button className="modal-close" onClick={() => setModal(null)}>✕</button>
@@ -1022,6 +1036,22 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
                     </div>
                     <button className="modal-btn" onClick={() => buyItem(it.name)}
                       disabled={buying || (c.gold ?? 0) < it.price}>{buying ? "购买中…" : "购买"}</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {modal === "lore" && (
+              <div className="modal-body">
+                {!c.lore?.length && <p className="modal-empty">世界书还是空的——探索中 DM 会自动记录地理、势力、历史等重要设定。</p>}
+                {(c.lore || []).map((e, i) => (
+                  <div key={i} className="modal-item">
+                    <div>
+                      <b>{e.title}</b> <span className={`lore-cat ${e.category}""}`}>{LORE_CAT_ZH[e.category] || e.category}</span>
+                      <div className="modal-desc">{e.content}</div>
+                      {e.keywords?.length > 0 && (
+                        <div className="modal-desc lore-kw">🔑 {e.keywords.join("、")}</div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
