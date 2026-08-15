@@ -810,12 +810,16 @@ function formatTool(evt) {
   switch (evt.call.name) {
     case "roll_dice":
       return `🎲 掷 ${r.expression}：${r.rolls.join(" + ")}${r.total !== r.rolls[0] ? ` = ${r.total}` : ""}${r.crit ? "  💥重击！" : ""}${r.fumble ? "  💀失手！" : ""}`;
-    case "ability_check":
-      return `🎯 ${r.label}：D20 ${r.d20} + ${r.modifier} = ${r.total}${r.dc != null ? `（DC ${r.dc}）${r.success ? " ✅成功" : " ❌失败"}` : ""}${r.lucky_reroll ? " 🍀幸运重掷" : ""}${r.crit ? "  💥大成功！" : ""}${r.fumble ? "  💀大失败！" : ""}`;
+    case "ability_check": {
+      // 技能/属性名中文化：后端返回英文 key（如 Investigation），展示层翻译（ZH 表）
+      const zhLabel = (r.label || "")
+        .replace(/^(技能检定|属性检定): (.+)$/, (m, pre, name) => `${pre}: ${t(name) || name}`);
+      return `🎯 ${zhLabel}：D20 ${r.d20} + ${r.modifier} = ${r.total}${r.dc != null ? `（DC ${r.dc}）${r.success ? " ✅成功" : " ❌失败"}` : ""}${r.lucky_reroll ? " 🍀幸运重掷" : ""}${r.crit ? "  💥大成功！" : ""}${r.fumble ? "  💀大失败！" : ""}`;
+    }
     case "attack":
-      return `⚔️ 攻击 ${r.target}（AC ${r.target_ac}）：攻击掷 ${r.attack_roll} + ${r.to_hit_bonus} = ${r.attack_total} → ${r.hit ? "命中！" : "未命中"}${r.damage ? `，伤害 ${r.damage}${r.crit ? "（重击！）" : ""}` : ""}`;
+      return `⚔️ 攻击 ${t(r.target)}（AC ${r.target_ac}）：攻击掷 ${r.attack_roll} + ${r.to_hit_bonus} = ${r.attack_total} → ${r.hit ? "命中！" : "未命中"}${r.damage ? `，伤害 ${r.damage}${r.crit ? "（重击！）" : ""}` : ""}`;
     case "lookup":
-      return `📖 ${r.name}: ${r.hp !== undefined ? `HP ${r.hp} · AC ${r.ac}` : r.level !== undefined ? `Lv.${r.level} ${r.school}` : r.category}`;
+      return `📖 ${t(r.name)}: ${r.hp !== undefined ? `HP ${r.hp} · AC ${r.ac}` : r.level !== undefined ? `Lv.${r.level} ${r.school}` : r.category}`;
     case "post_quest":
       return `📜 ${r.quest.title}${r.quest.reward ? `（${r.quest.reward}）` : ""} → ${r.quest.status === "accepted" ? "已接下" : "已登记到告示栏"}`;
     case "add_item":
