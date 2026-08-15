@@ -13,14 +13,14 @@ DICE_RE = re.compile(r"(\d*)d(\d+)([+-]\d+)?")
 
 
 def roll(expression: str) -> dict:
-    """解析并执行骰子表达式，如 '1d20+4' / '2d6'。"""
+    """解析并执行骰子表达式，如 '1d20+4' / '2d6'。修正值钳制 ±100（security：防 LLM 超大加值）。"""
     m = DICE_RE.match(expression.strip().lower())
     if not m:
         raise ValueError(f"无效骰子表达式: {expression}")
     n = int(m.group(1) or 1)
     d = int(m.group(2))
     mod = int(m.group(3) or 0)
-    if n < 1 or n > 100 or d < 1 or d > 1000:
+    if n < 1 or n > 100 or d < 1 or d > 1000 or mod > 100 or mod < -100:
         raise ValueError(f"骰子参数越界: {expression}")
     rolls = [random.randint(1, d) for _ in range(n)]
     total = sum(rolls) + mod
@@ -505,6 +505,8 @@ def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
         trait_name = spec.get("trait_name", "")
         trait_dice = spec.get("trait_damage", "")
     else:
+        # 无装备武器：引擎默认 1d8，不信任 LLM 传参（security：防任意伤害/刷经验）
+        weapon_dice = "1d8"
         quality_bonus = 0
         trait_name = ""
         trait_dice = ""
@@ -896,7 +898,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "attack",
-            "description": "近战攻击检定。玩家攻击一个怪物时使用。命中则扣减怪物 HP（引擎维护战斗状态），击杀后玩家获得经验。返回命中与否与伤害。",
+            "description": "近战攻击检定。玩家攻击一个怪物时使用。命中则扣减怪物 HP（引擎维护战斗状态），击杀后玩家获得经验。返回命中与否与伤害。伤害骰由引擎按已装备武器裁定（无需传 weapon_dice，传入也会被忽略）。",
             "parameters": {
                 "type": "object",
                 "properties": {

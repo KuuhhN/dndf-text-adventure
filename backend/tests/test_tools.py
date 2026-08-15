@@ -292,11 +292,11 @@ def test_equipment_stats():
     r = attack(c, "Goblin", weapon_dice="1d12")
     assert r["weapon_dice"] == "1d4" and r["weapon"] == "匕首", "装备匕首应强制 1d4"
     assert r["quality_bonus"] == 0
-    # 无装备：回退调用方参数（向后兼容）
+    # 无装备：引擎默认 1d8（security：不信任 LLM 传参，防任意伤害）
     c2 = create_character("T2", "Human", "Fighter")
     encounter(c2, ["Goblin"])
-    r2 = attack(c2, "Goblin", weapon_dice="1d6")
-    assert r2["weapon_dice"] == "1d6" and r2["weapon"] == ""
+    r2 = attack(c2, "Goblin", weapon_dice="1d6+9999")
+    assert r2["weapon_dice"] == "1d8" and r2["weapon"] == ""
     # 精良长剑：1d8 + 品质 +1
     c3 = create_character("T3", "Human", "Fighter")
     add_item(c3, "精良长剑", "精钢锻造", 1)
