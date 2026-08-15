@@ -150,3 +150,39 @@ def test_game_chat_forced_attack_fallback():
     # 历史中的幻觉消息也被过滤（下一轮不再污染）
     s2 = game.get_session(sid)
     assert not any("call attack" in h["content"] for h in s2["history"])
+
+
+def test_game_chat_empty_return_gets_error():
+    """LLM 空返回（不抛错）：必须发 error 提示，绝不静默（静默=「没剧情」假象）。"""
+    sid = _make_session()
+
+    async def fake(messages, tools=None, max_tokens=900):
+        return
+        yield  # 使其成为 async 生成器（空迭代），模拟 LLM 空返回不抛错
+
+    async def run():
+        with patch("app.chat.stream_chat", fake):
+            return [e async for e in game_chat(sid, "冒险开始！")]
+
+    events = asyncio.run(run())
+    errors = [e for e in events if e["type"] == "error"]
+    assert errors, "空返回必须出现 error 事件"
+    assert "模型无返回" in errors[0]["text"]
+    assert [e["type"] for e in events][-1] == "state"  # 行动状态仍正常补发
+
+
+def test_game_chat_unexpected_error_gets_error():
+    """未预期异常冒泡：兜底 except 发 error，不静默断流。"""
+    sid = _make_session()
+
+    async def fake(messages, tools=None, max_tokens=900):
+        raise RuntimeError("boom")
+
+    async def run():
+        with patch("app.chat.stream_chat", fake):
+            return [e async for e in game_chat(sid, "继续")]
+
+    events = asyncio.run(run())
+    errors = [e for e in events if e["type"] == "error"]
+    assert errors, "未预期异常必须兜底发 error"
+    assert "DM 失联" in errors[0]["text"]

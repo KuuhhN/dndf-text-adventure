@@ -203,6 +203,9 @@ async def game_chat(session_id: str, message: str) -> AsyncIterator[dict]:
                     })
                     continue
             assistant_text += "".join(texts)
+            if not assistant_text:
+                # LLM 空返回（不抛错的断流/退化）：静默会显得「没剧情」，明确提示重试
+                yield {"type": "error", "text": "DM 暂时失联（模型无返回），请重试。"}
             break
         else:
             if not assistant_text:  # 超限且无叙事：至少提示工具已执行
@@ -213,6 +216,10 @@ async def game_chat(session_id: str, message: str) -> AsyncIterator[dict]:
         yield {"type": "error", "text": str(e)}
         yield {"type": "state", "in_combat": bool(character.get("combat", {}).get("enemies"))}  # 工具副作用可能已改变战斗状态
         assistant_text = ""  # 丢弃半截叙事，避免存脏历史
+        return
+    except Exception as e:  # 兜底：任何未预期错误都给出反馈，绝不静默（静默=「没剧情」假象）
+        yield {"type": "error", "text": f"DM 失联（{type(e).__name__}），请重试。"}
+        yield {"type": "state", "in_combat": bool(character.get("combat", {}).get("enemies"))}
         return
 
     # 持久化对话历史（供存档与上下文；先落库再发 state，避免断连丢历史）
