@@ -51,9 +51,11 @@ def test_game_chat_tool_round_trip():
     types = [e["type"] for e in events]
     assert "tool" in types and "delta" in types
 
-    # state 事件：攻击后敌人可能存活 → in_combat 为 True（战斗状态引擎判定）
+    # state 事件：in_combat 与引擎最终战斗状态一致（骰子可能击杀清场 → False）
+    from app import game as _game
     state_evt = next(e for e in events if e["type"] == "state")
-    assert state_evt["in_combat"] is True
+    assert state_evt["in_combat"] == bool(
+        _game.get_session(sid)["character"].get("combat", {}).get("enemies"))
 
     tool_evt = next(e for e in events if e["type"] == "tool")
     assert tool_evt["call"]["name"] == "attack"
