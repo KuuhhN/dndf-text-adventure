@@ -17,7 +17,7 @@ const SCENE_PRESETS = [
   { key: "tavern", icon: "🍺", name: "醉龙酒馆", loc: "tavern", text: "你在艾瑟兰村的醉龙酒馆醒来：炉火噼啪、酒客喧哗，冒险的故事从一张吧台开始。" },
   { key: "forest", icon: "🌲", name: "幽影森林边缘", loc: "forest_edge", text: "你在幽影森林边缘的猎营醒来：晨雾缭绕、鸟鸣幽远，猎弓就放在手边。" },
   { key: "mine", icon: "⛏️", name: "矿洞镇", loc: "mine_town", text: "你在矿洞镇的铁匠铺前醒来：矿锤叮当、尘土飞扬，镇上正缺敢下深矿的雇工。" },
-  { key: "capital", icon: "🏰", name: "王都艾瑟兰", loc: "capital", text: "你在王都艾瑟兰的旅店房间醒来：窗外马车辘辘、骑士巡街，都城的暗流正在涌动。" },
+  { key: "capital", icon: "🏰", name: "王都艾瑟兰", loc: "capital", text: "你在王都艾瑟兰的旅店房间醒来：窗外马车辘辘、骑士巡街，楼下狮鹫酒馆的喧嚣若隐若现。" },
   { key: "custom", icon: "✍️", name: "自拟开局", loc: "tavern", text: "" },
 ];
 const EQUIP_SLOTS = ["weapon", "armor", "trinket"];

@@ -195,7 +195,11 @@ WORLD_MAP = {
     },
     "capital": {
         "name": "王都艾瑟兰", "desc": "大陆都城，皇家市场应有尽有。",
-        "shop_level": 3, "neighbors": ["mine_town", "mage_tower", "coast_city"],
+        "shop_level": 3, "neighbors": ["mine_town", "mage_tower", "coast_city", "capital_tavern"],
+    },
+    "capital_tavern": {
+        "name": "狮鹫酒馆", "desc": "王都最热闹的酒馆，佣兵、贵族与密探在此出没，消息灵通。",
+        "shop_level": 3, "neighbors": ["capital"],
     },
     "coast_city": {
         "name": "海岸城", "desc": "海港商埠，走私货与异域珍宝的集散地。",

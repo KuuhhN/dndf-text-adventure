@@ -1367,3 +1367,23 @@ def test_attack_rejects_non_official_damage_bonus():
     with patch("app.tools.roll", return_value={"rolls": [10], "total": 10, "mod": 0, "crit": False}):
         r2 = attack(c, "Goblin")
     assert r2["quality_bonus"] == 2, "合法加成 2 仍生效"
+
+
+def test_capital_tavern_reachable():
+    """王都开局酒馆可达性：王都有本地酒馆（狮鹫酒馆），不再强制穿越三区去村庄醉龙酒馆。"""
+    from app.tools import WORLD_MAP, change_location
+    assert "capital_tavern" in WORLD_MAP, "地图应含王都酒馆"
+    assert "capital_tavern" in WORLD_MAP["capital"]["neighbors"], "王都应邻接本地酒馆"
+    assert "capital" in WORLD_MAP["capital_tavern"]["neighbors"], "邻接双向"
+    # 王都开局 → 下楼去本地酒馆：直接可达
+    c = create_character("CapTavern", "Human", "Fighter", start_location="capital")
+    r = change_location(c, "capital_tavern")
+    assert r["location"] == "capital_tavern", "王都→狮鹫酒馆应直接可达"
+    # 村庄醉龙酒馆仍不可瞬移（邻接规则保持）
+    try:
+        change_location(c, "tavern")
+        assert False, "应报错"
+    except ValueError as e:
+        assert "无法直接到达" in str(e)
+    # 商店分级：狮鹫酒馆 3 级商货（王都消费水平）
+    assert WORLD_MAP["capital_tavern"]["shop_level"] == 3
