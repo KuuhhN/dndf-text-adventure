@@ -159,6 +159,9 @@ async def game_chat(session_id: str, message: str) -> AsyncIterator[dict]:
     if assistant_text:
         yield {"type": "delta", "text": assistant_text}
 
+    # 行动状态（前端按钮场景化）：战斗状态 = 有存活敌人
+    yield {"type": "state", "in_combat": bool(game.get_session(session_id)["character"].get("combat", {}).get("enemies"))}
+
     # 持久化对话历史（供存档与上下文）
     game.append_history(session_id, "user", message)
     if assistant_text:

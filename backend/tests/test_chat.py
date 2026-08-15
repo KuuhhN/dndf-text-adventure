@@ -79,7 +79,8 @@ def test_game_chat_no_tool_plain_narrative():
             return [e async for e in game_chat(sid, "我环顾酒馆")]
 
     events = asyncio.run(run())
-    assert [e["type"] for e in events] == ["delta"]
+    # delta 叙事 + state 行动状态（战斗标志）
+    assert [e["type"] for e in events] == ["delta", "state"]
     assert calls["n"] == 1  # 只请求一次
 
 

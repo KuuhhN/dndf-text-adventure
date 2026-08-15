@@ -112,6 +112,7 @@ def get_session(sid: str):
     s = game.get_session(sid)
     if not s:
         return JSONResponse({"error": "会话不存在"}, status_code=404)
+    s["in_combat"] = bool(s["character"].get("combat", {}).get("enemies"))
     return s
 
 

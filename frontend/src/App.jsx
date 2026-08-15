@@ -189,6 +189,7 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [inCombat, setInCombat] = useState(false);
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -209,6 +210,7 @@ function App() {
   async function loadSession(id) {
     const d = await (await fetch(`${API}/api/session/${id}`)).json();
     setSession({ id: d.id, character: d.character });
+    setInCombat(Boolean(d.in_combat));
     setMessages(d.history.filter((h) => h.role !== "tool"));
   }
 
@@ -276,6 +278,8 @@ function App() {
             // 工具副作用（HP/敌人/经验）后刷新角色卡
             const d = await (await fetch(`${API}/api/session/${sessionId}`)).json();
             setSession((prev) => ({ ...prev, character: d.character }));
+          } else if (evt.type === "state") {
+            setInCombat(Boolean(evt.in_combat));
           } else if (evt.type === "error") {
             setMessages((prev) => [...prev, { role: "error", content: evt.text }]);
           }
@@ -892,10 +896,10 @@ function GameView({ character, messages, input, busy, setInput, send, sendText, 
       </main>
       <footer className="input-bar">
         <div className="quick-actions">
-          <button onClick={() => !busy && sendText("我想掷一个 D20 骰子。")} disabled={busy}>🎲 掷骰</button>
-          <button onClick={() => !busy && sendText("我环顾四周，仔细观察周围的环境。")} disabled={busy}>🔍 察觉</button>
-          <button onClick={() => !busy && sendText("我压低身形，尝试潜行靠近。")} disabled={busy}>🕶️ 潜行</button>
-          <button onClick={() => !busy && sendText("我拔出武器，攻击最近的敌人！")} disabled={busy}>⚔️ 攻击</button>
+          <button onClick={() => !busy && sendText("我想掷一个 D20 骰子。")} disabled={busy} title="任何时候都可检定">🎲 掷骰</button>
+          <button onClick={() => !busy && sendText("我环顾四周，仔细观察周围的环境。")} disabled={busy || inCombat} title="非战斗时可用（新环境/可疑线索）">🔍 察觉</button>
+          <button onClick={() => !busy && sendText("我压低身形，尝试潜行靠近。")} disabled={busy || inCombat} title="非战斗时可用（需视野遮挡）">🕶️ 潜行</button>
+          <button onClick={() => !busy && sendText("我拔出武器，攻击最近的敌人！")} disabled={busy || !inCombat} title="仅战斗时可用">⚔️ 攻击</button>
         </div>
         <div className="input-row">
           <input
