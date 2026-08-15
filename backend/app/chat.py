@@ -218,6 +218,7 @@ async def game_chat(session_id: str, message: str) -> AsyncIterator[dict]:
         assistant_text = ""  # 丢弃半截叙事，避免存脏历史
         return
     except Exception as e:  # 兜底：任何未预期错误都给出反馈，绝不静默（静默=「没剧情」假象）
+        logger.exception("game_chat 未预期异常")
         yield {"type": "error", "text": f"DM 失联（{type(e).__name__}），请重试。"}
         yield {"type": "state", "in_combat": bool(character.get("combat", {}).get("enemies"))}
         return

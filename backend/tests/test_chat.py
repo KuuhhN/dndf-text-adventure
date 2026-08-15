@@ -177,6 +177,7 @@ def test_game_chat_unexpected_error_gets_error():
 
     async def fake(messages, tools=None, max_tokens=900):
         raise RuntimeError("boom")
+        yield  # 使其成为真 async 生成器：异常在迭代中抛出（非协议层 TypeError）
 
     async def run():
         with patch("app.chat.stream_chat", fake):
@@ -186,3 +187,4 @@ def test_game_chat_unexpected_error_gets_error():
     errors = [e for e in events if e["type"] == "error"]
     assert errors, "未预期异常必须兜底发 error"
     assert "DM 失联" in errors[0]["text"]
+    assert [e["type"] for e in events].count("state") == 1  # state 恰好一次
