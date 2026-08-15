@@ -310,6 +310,9 @@ def test_record_lore_flow():
     r3 = execute_tool("record_lore", {"title": "铁王座之争", "category": "history",
                                       "content": "两百年前的王位战争。", "keywords": "铁王座,王位战争"}, c)
     assert r3["entry"]["title"] == "铁王座之争" and len(c["lore"]) == 2
+    # 全角逗号分隔（review should-fix：LLM 常用全角『，』）
+    r_f = record_lore(c, "灰烬教团", "faction", "崇拜龙焰的秘密教团。", "龙焰，教团，献祭")
+    assert c["lore"][2]["keywords"] == ["龙焰", "教团", "献祭"]
     # 分类枚举与工具 schema 一致
     assert set(LORE_CATEGORIES) == {"geography", "faction", "history", "magic", "religion"}
 

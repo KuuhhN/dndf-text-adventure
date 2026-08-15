@@ -1046,7 +1046,7 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
                 {(c.lore || []).map((e, i) => (
                   <div key={i} className="modal-item">
                     <div>
-                      <b>{e.title}</b> <span className={`lore-cat ${e.category}""}`}>{LORE_CAT_ZH[e.category] || e.category}</span>
+                      <b>{e.title}</b> <span className={`lore-cat ${e.category}`}>{LORE_CAT_ZH[e.category] || e.category}</span>
                       <div className="modal-desc">{e.content}</div>
                       {e.keywords?.length > 0 && (
                         <div className="modal-desc lore-kw">🔑 {e.keywords.join("、")}</div>

@@ -124,8 +124,11 @@ def record_lore(character: dict, title: str, category: str, content: str, keywor
         raise ValueError("词条内容过长（≤500 字）")
     if len(keywords or "") > 200:
         raise ValueError("关键词过长（≤200 字）")
-    kw = [k.strip() for k in keywords.split(",") if k.strip()] if keywords else []
+    # 半角/全角逗号均可分隔（review should-fix：LLM 常用全角『，』）
+    kw = [k.strip() for k in re.split(r"[,，]", keywords or "") if k.strip()]
     lore = _lore(character)
+    if len(lore) >= 200:  # review nit：词条总数上限，防 prompt 膨胀/扫描退化
+        raise ValueError("世界书词条已达上限（200 条）")
     for e in lore:
         if e["title"] == title:  # 同名更新（内容/分类/关键词刷新）
             e["category"] = category
