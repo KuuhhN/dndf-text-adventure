@@ -767,8 +767,8 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
   const [modalMsg, setModalMsg] = useState("");
   const [buying, setBuying] = useState(false); // 购买请求中（防双击重复扣款）
 
-  // 当前区域（character.location + 世界地图）
-  const curLoc = worldMap[c.location] || null;
+  // 当前区域（character.location + 世界地图；旧角色无 location 字段时默认酒馆）
+  const curLoc = worldMap[c.location || "tavern"] || null;
   const shopLevel = curLoc?.shop_level || 0;
   const hasShop = shopLevel > 0;
 
@@ -1039,7 +1039,7 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
                         {loc.shop_level > 0 && <span className="shop-price"> 🏪{loc.shop_level}级</span>}
                         {here && <span className="map-tag here-tag">📍 当前</span>}
                         {!here && reachable && <span className="map-tag">🛤️ 可前往</span>}
-                        {!here && !reachable && <span className="map-tag far">🔒 未到达</span>}
+                        {!here && !reachable && <span className="map-tag far">非邻接</span>}
                         <div className="modal-desc">{loc.desc}</div>
                       </div>
                       {reachable && !here && (

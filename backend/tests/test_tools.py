@@ -362,6 +362,21 @@ def test_buy_item_flow():
         assert False, "应报错"
     except ValueError as e:
         assert "1-99" in str(e)
+    # 区域分级校验：酒馆（1 级）买不到 3 级卷轴（review should-fix：防越级购买）
+    try:
+        buy_item(c, "法术卷轴（燃烧之手）", 1)
+        assert False, "应报错"
+    except ValueError as e:
+        assert "买不到" in str(e)
+    # 到王都（3 级）后可以买
+    from app.tools import change_location
+    change_location(c, "village_market")
+    change_location(c, "tavern")
+    # 直接设位置到王都以验证分级（跳过邻接路径）
+    c["location"] = "capital"
+    c["gold"] = 100
+    r3 = buy_item(c, "法术卷轴（燃烧之手）", 1)
+    assert r3["cost"] == 75 and c["inventory"][-1]["name"] == "法术卷轴（燃烧之手）"
 
 
 def test_remove_item_consume_and_discard():

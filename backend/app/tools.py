@@ -289,6 +289,11 @@ def buy_item(character: dict, item: str, quantity: int = 1) -> dict:
     spec = next((s for s in SHOP_ITEMS if s["name"] == item), None)
     if not spec:
         raise ValueError(f"商店没有这件商品: {item}")
+    # 区域商店分级校验：只能在 shop_level >= 商品等级的区域买到（防越级购买）
+    loc_key = _location(character)
+    loc = WORLD_MAP.get(loc_key)
+    if not loc or loc.get("shop_level", 0) < spec["level"]:
+        raise ValueError(f"当前区域买不到这件商品（需 {spec['level']} 级商货）")
     cost = spec["price"] * quantity
     if _gold(character) < cost:
         raise ValueError(f"金币不足（需要 {cost}，现有 {_gold(character)}）")
