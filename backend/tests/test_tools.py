@@ -23,6 +23,9 @@ from app.tools import (
     remove_item,
     roll,
     tool_result_message,
+    _guess_category,
+    equip_item,
+    unequip_item,
 )
 
 
@@ -227,7 +230,7 @@ def test_execute_tool_post_quest():
 def test_add_item_merges_quantity():
     c = create_character("T", "Human", "Fighter")
     r = add_item(c, "治疗药水", "恢复 2d4+2 生命", 2)
-    assert c["inventory"] == [{"name": "治疗药水", "description": "恢复 2d4+2 生命", "quantity": 2}]
+    assert c["inventory"] == [{"name": "治疗药水", "description": "恢复 2d4+2 生命", "quantity": 2, "category": "consumable"}]
     assert r["total"] == 1
     add_item(c, "治疗药水", quantity=1)  # 同名合并
     assert c["inventory"][0]["quantity"] == 3
@@ -402,10 +405,10 @@ def test_equipment_stats():
     equip_item(c5, "链甲衫", "armor")  # 替换：皮甲回包 + AC 回退
     assert c5["ac"] == base5 + 3, "链甲衫 AC +3（皮甲加成已回退）"
     add_item(c5, "盾牌", "木盾", 1)
-    equip_item(c5, "盾牌", "trinket")
-    assert c5["ac"] == base5 + 5, "盾牌 AC +2 叠加"
+    equip_item(c5, "盾牌", "armor")  # 替换链甲衫：盾牌 +2（旧加成回退）
+    assert c5["ac"] == base5 + 2, "盾牌 AC +2（链甲衫加成已回退）"
     unequip_item(c5, "armor")
-    assert c5["ac"] == base5 + 2, "卸下链甲衫 AC 回退"
+    assert c5["ac"] == base5, "卸下盾牌 AC 回退"
 
 
 def test_opening_and_start_location():
@@ -447,7 +450,7 @@ def test_equipment_flow():
     add_item(c, "皮甲", "轻便护甲", 1)
     # 装备武器
     r = equip_item(c, "长剑", "weapon")
-    assert r["equipment"]["weapon"] == "长剑" and c["inventory"] == [{"name": "皮甲", "description": "轻便护甲", "quantity": 1}]
+    assert r["equipment"]["weapon"] == "长剑" and c["inventory"] == [{"name": "皮甲", "description": "轻便护甲", "quantity": 1, "category": "armor"}]
     # 装备护甲
     equip_item(c, "皮甲", "armor")
     assert c["equipment"]["armor"] == "皮甲" and c["inventory"] == []
@@ -493,10 +496,14 @@ def test_equipment_flow():
     assert c["equipment"]["armor"] == "皮甲"
     assert sum(it["quantity"] for it in c["inventory"] if it["name"] == "皮甲") == 1  # 背包物品不丢
     # execute_tool 路由
-    r3 = execute_tool("equip_item", {"item": "匕首", "slot": "armor"}, c)
-    assert r3["equipment"]["armor"] == "匕首"
-    r4 = execute_tool("unequip_item", {"slot": "armor"}, c)
-    assert r4["equipment"]["armor"] is None
+    add_item(c, "匕首", "备用", 1)
+    r3 = execute_tool("equip_item", {"item": "匕首", "slot": "weapon"}, c)
+    assert r3["equipment"]["weapon"] == "匕首"
+    r4 = execute_tool("unequip_item", {"slot": "weapon"}, c)
+    assert r4["equipment"]["weapon"] is None
+    # execute_tool 分类拒绝（武器不能装护甲槽）
+    r_bad = execute_tool("equip_item", {"item": "匕首", "slot": "armor"}, c)
+    assert "error" in r_bad and "不能装到护甲槽" in r_bad["error"]
 
 
 def test_world_state_flow():
@@ -672,7 +679,7 @@ def test_buy_item_flow():
     c["gold"] = 100
     r = buy_item(c, "治疗药水", 1)  # 50 金币
     assert r["gold"] == 50 and r["cost"] == 50
-    assert c["inventory"] == [{"name": "治疗药水", "description": "饮下恢复 2d4+2 点生命值", "quantity": 1}]
+    assert c["inventory"] == [{"name": "治疗药水", "description": "饮下恢复 2d4+2 点生命值", "quantity": 1, "category": "consumable"}]
     try:
         buy_item(c, "治疗药水", 2)  # 需要 100，只剩 50
         assert False, "应报错"
@@ -1190,3 +1197,57 @@ def test_ability_check_dc_range_enforced():
     # 合法 dc 正常
     r = execute_tool("ability_check", {"skill_or_ability": "Perception", "dc": 10}, c)
     assert r["dc"] == 10 and r["success"] in (True, False)
+
+
+def test_item_category_and_slot_matching():
+    """物品分类与槽位匹配：武器只能装武器槽，消耗品/杂物不能装备，野兔不能当武器。"""
+    c = create_character("CatTest", "Human", "Fighter")
+    add_item(c, "祖传战斧", "矮人铁匠之作", item_type="weapon", damage="1d12")
+    add_item(c, "野兔", "刚抓到的野兔")
+    add_item(c, "治疗药水", "恢复生命", item_type="consumable")
+    add_item(c, "旧戒指", "生锈的铜戒指", item_type="trinket")
+
+    # 武器 → 武器槽 OK
+    r = equip_item(c, "祖传战斧", "weapon")
+    assert r["equipment"]["weapon"] == "祖传战斧"
+    # 武器装到饰品槽：拒绝（分类不匹配）
+    add_item(c, "祖传战斧", quantity=1, item_type="weapon", damage="1d12")
+    with pytest.raises(ValueError, match="不能装到饰品槽"):
+        equip_item(c, "祖传战斧", "trinket")
+    # 野兔（杂物）不能当武器
+    with pytest.raises(ValueError, match="不能装备"):
+        equip_item(c, "野兔", "weapon")
+    # 消耗品不能装备
+    with pytest.raises(ValueError, match="不能装备"):
+        equip_item(c, "治疗药水", "weapon")
+    # 饰品 → 饰品槽 OK
+    r = equip_item(c, "旧戒指", "trinket")
+    assert r["equipment"]["trinket"] == "旧戒指"
+
+
+def test_item_category_guess_fallback():
+    """旧存档物品无 category：按名称推断兜底（皮甲→armor 可装备护甲槽；无关键词→杂物不可装备）。"""
+    c = create_character("GuessTest", "Human", "Fighter")
+    # 直接构造旧格式物品（无 category 字段）
+    c["inventory"].append({"name": "皮甲", "description": "旧存档", "quantity": 1})
+    c["inventory"].append({"name": "神秘石板", "description": "旧存档", "quantity": 1})
+    assert _guess_category("皮甲") == "armor"
+    r = equip_item(c, "皮甲", "armor")
+    assert r["equipment"]["armor"] == "皮甲"
+    with pytest.raises(ValueError, match="不能装备"):
+        equip_item(c, "神秘石板", "armor")
+
+
+def test_add_item_category_validation():
+    """item_type 白名单校验 + 落库 category + 购买透传。"""
+    c = create_character("ShopCat", "Human", "Fighter")
+    with pytest.raises(ValueError, match="物品分类"):
+        add_item(c, "测试物", item_type="nonsense")
+    add_item(c, "短弓", item_type="weapon")
+    assert c["inventory"][-1]["category"] == "weapon"
+    # 购买：SHOP_ITEMS 分类透传
+    c["gold"] = 100
+    buy_item(c, "皮甲", 1)
+    assert any(it["category"] == "armor" for it in c["inventory"])
+    buy_item(c, "治疗药水", 1)
+    assert any(it["category"] == "consumable" for it in c["inventory"])

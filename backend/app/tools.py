@@ -262,37 +262,37 @@ def register_npc(character: dict, name: str, identity: str = "", location: str =
 # 酒馆/商店精选商品（D&D 5e 官方价格，中文名；价格由引擎定，防前端改包）
 SHOP_ITEMS = [
     # 等级 1：村庄货（酒馆/村庄集市）——品质：普通
-    {"name": "治疗药水", "price": 50, "level": 1, "desc": "饮下恢复 2d4+2 点生命值"},
-    {"name": "匕首", "price": 2, "level": 1, "quality": "普通", "damage": "1d4",
+    {"name": "治疗药水", "price": 50, "level": 1, "category": "consumable", "desc": "饮下恢复 2d4+2 点生命值"},
+    {"name": "匕首", "price": 2, "level": 1, "category": "weapon", "quality": "普通", "damage": "1d4",
      "desc": "灵巧近战/投掷武器，伤害 1d4 穿刺"},
-    {"name": "皮甲", "price": 10, "level": 1, "quality": "普通", "ac_bonus": 1,
+    {"name": "皮甲", "price": 10, "level": 1, "category": "armor", "quality": "普通", "ac_bonus": 1,
      "desc": "轻型护甲，AC 基础 +1（敏捷另有加成）"},
-    {"name": "盾牌", "price": 10, "level": 1, "quality": "普通", "ac_bonus": 2,
+    {"name": "盾牌", "price": 10, "level": 1, "category": "armor", "quality": "普通", "ac_bonus": 2,
      "desc": "持盾格挡，AC +2"},
-    {"name": "盗贼工具", "price": 25, "level": 1, "desc": "开锁与解除陷阱检定时可获熟练加值"},
-    {"name": "火把", "price": 1, "level": 1, "desc": "照明 18 米"},
-    {"name": "口粮（1 天）", "price": 5, "level": 1, "desc": "冒险口粮，一天份"},
-    {"name": "水袋", "price": 2, "level": 1, "desc": "装 1.8 升水"},
+    {"name": "盗贼工具", "price": 25, "level": 1, "category": "other", "desc": "开锁与解除陷阱检定时可获熟练加值"},
+    {"name": "火把", "price": 1, "level": 1, "category": "consumable", "desc": "照明 18 米"},
+    {"name": "口粮（1 天）", "price": 5, "level": 1, "category": "consumable", "desc": "冒险口粮，一天份"},
+    {"name": "水袋", "price": 2, "level": 1, "category": "consumable", "desc": "装 1.8 升水"},
     # 等级 2：城镇货（矿洞镇/法师塔/海岸城）——品质：精良（伤害 +1）
-    {"name": "长剑", "price": 15, "level": 2, "quality": "普通", "damage": "1d8",
+    {"name": "长剑", "price": 15, "level": 2, "category": "weapon", "quality": "普通", "damage": "1d8",
      "desc": "军用近战武器，伤害 1d8 挥砍（可双手 1d10）"},
-    {"name": "精良长剑", "price": 60, "level": 2, "quality": "精良", "damage": "1d8", "damage_bonus": 1,
+    {"name": "精良长剑", "price": 60, "level": 2, "category": "weapon", "quality": "精良", "damage": "1d8", "damage_bonus": 1,
      "desc": "精钢锻造的长剑，伤害 1d8+1 挥砍"},
-    {"name": "短弓", "price": 25, "level": 2, "quality": "普通", "damage": "1d6",
+    {"name": "短弓", "price": 25, "level": 2, "category": "weapon", "quality": "普通", "damage": "1d6",
      "desc": "远程武器，伤害 1d6 穿刺（射程 24/96 米）"},
-    {"name": "精良短弓", "price": 80, "level": 2, "quality": "精良", "damage": "1d6", "damage_bonus": 1,
+    {"name": "精良短弓", "price": 80, "level": 2, "category": "weapon", "quality": "精良", "damage": "1d6", "damage_bonus": 1,
      "desc": "角木层压短弓，伤害 1d6+1 穿刺"},
-    {"name": "链甲衫", "price": 50, "level": 2, "quality": "精良", "ac_bonus": 3,
+    {"name": "链甲衫", "price": 50, "level": 2, "category": "armor", "quality": "精良", "ac_bonus": 3,
      "desc": "中型护甲，AC 基础 +3（敏捷至多 +2）"},
-    {"name": "照明杖", "price": 2, "level": 2, "desc": "点燃后照明 36 米，持续 1 小时"},
-    {"name": "绳子（15 米）", "price": 1, "level": 2, "desc": "麻绳，攀爬/捆缚用"},
-    {"name": "圣水（小瓶）", "price": 25, "level": 2, "desc": "对不死生物投掷造成 2d6 光耀伤害"},
+    {"name": "照明杖", "price": 2, "level": 2, "category": "consumable", "desc": "点燃后照明 36 米，持续 1 小时"},
+    {"name": "绳子（15 米）", "price": 1, "level": 2, "category": "other", "desc": "麻绳，攀爬/捆缚用"},
+    {"name": "圣水（小瓶）", "price": 25, "level": 2, "category": "consumable", "desc": "对不死生物投掷造成 2d6 光耀伤害"},
     # 等级 3：都城货（王都）——品质：稀有（伤害 +2 + 特殊词条）
-    {"name": "稀有匕首", "price": 150, "level": 3, "quality": "稀有", "damage": "1d4", "damage_bonus": 2,
+    {"name": "稀有匕首", "price": 150, "level": 3, "category": "weapon", "quality": "稀有", "damage": "1d4", "damage_bonus": 2,
      "trait_name": "淬毒", "trait_damage": "1d4",
      "desc": "刃口淬毒的黑曜匕首，伤害 1d4+2，命中附加 1d4 毒素（淬毒）"},
-    {"name": "法术卷轴（燃烧之手）", "price": 75, "level": 3, "desc": "1 环法术卷轴，读咒释放（需仪式时间）"},
-    {"name": "放大镜", "price": 100, "level": 3, "desc": "观察细小物体时优势（辨识物品/文书）"},
+    {"name": "法术卷轴（燃烧之手）", "price": 75, "level": 3, "category": "consumable", "desc": "1 环法术卷轴，读咒释放（需仪式时间）"},
+    {"name": "放大镜", "price": 100, "level": 3, "category": "other", "desc": "观察细小物体时优势（辨识物品/文书）"},
 ]
 
 
@@ -303,6 +303,29 @@ def _inventory(character: dict) -> list[dict]:
 # 装备槽位（引擎白名单）
 EQUIP_SLOTS = ("weapon", "armor", "trinket")
 EQUIP_SLOT_ZH = {"weapon": "武器", "armor": "护甲", "trinket": "饰品"}
+
+# 物品分类（引擎白名单）：武器/护甲/饰品可装备，消耗品/杂物不可装备
+ITEM_TYPES = ("weapon", "armor", "trinket", "consumable", "other")
+ITEM_TYPE_ZH = {"weapon": "武器", "armor": "护甲", "trinket": "饰品", "consumable": "消耗品", "other": "杂物"}
+# 槽位 ↔ 分类匹配（weapon 槽只能装武器类，杜绝「野兔当武器」）
+SLOT_CATEGORY = {"weapon": "weapon", "armor": "armor", "trinket": "trinket"}
+# 分类关键词推断（AI 生成物品未传 item_type 时兜底；旧存档物品无 category 时兜底）
+_CATEGORY_KEYWORDS = {
+    "weapon": ("剑", "刀", "匕首", "弓", "弩", "箭", "矢", "斧", "锤", "杖", "枪", "矛",
+               "镰", "镖", "刃", "棒", "鞭", "镐", "投石", "飞刀"),
+    "armor": ("甲", "盾", "铠", "袍", "盔", "手套", "靴", "披风", "斗篷", "护胸", "胸甲", "护腕"),
+    "trinket": ("戒指", "项链", "坠饰", "护符", "吊坠", "徽章", "宝石", "水晶", "护身符", "耳环", "手镯", "首饰"),
+    "consumable": ("药水", "卷轴", "食物", "干粮", "面包", "肉", "酒", "水", "草药", "毒",
+                   "油", "火把", "圣水", "药剂", "口粮", "毒药"),
+}
+
+
+def _guess_category(name: str) -> str:
+    """按名称关键词推断物品分类（兜底：AI 未传 item_type / 旧存档无 category）。"""
+    for cat, kws in _CATEGORY_KEYWORDS.items():
+        if any(k in name for k in kws):
+            return cat
+    return "other"
 
 
 def _equipment(character: dict) -> dict:
@@ -335,9 +358,18 @@ def _item_numeric_stats(character: dict, item: str) -> dict:
     }
 
 
+def _item_category(character: dict, name: str) -> str:
+    """物品分类：背包字段 > 名称推断（AI 生成/旧存档兜底）。"""
+    for it in _inventory(character):
+        if it.get("name") == name and it.get("category"):
+            return it["category"]
+    return _guess_category(name)
+
+
 def equip_item(character: dict, item: str, slot: str) -> dict:
     """装备物品：从背包放入指定槽位（weapon/armor/trinket）。同槽位已有装备自动回包。
-    护甲/盾牌按引擎数值增减 AC（ac_bonus）；武器伤害骰由 attack 读取（damage/品质/词条）。"""
+    护甲/盾牌按引擎数值增减 AC（ac_bonus）；武器伤害骰由 attack 读取（damage/品质/词条）。
+    槽位与物品分类必须匹配（武器→武器槽/护甲→护甲槽/饰品→饰品槽），消耗品与杂物不可装备。"""
     item = (item or "").strip()
     slot = (slot or "").strip()
     if slot not in EQUIP_SLOTS:
@@ -346,6 +378,12 @@ def equip_item(character: dict, item: str, slot: str) -> dict:
     found = next((it for it in items if it["name"] == item), None)
     if not found:
         raise ValueError(f"背包中没有 {item}")
+    # 分类匹配校验（引擎裁定：LLM 传错槽位直接拒绝）
+    category = found.get("category") or _guess_category(found["name"])
+    if category not in ("weapon", "armor", "trinket"):
+        raise ValueError(f"【{item}】是{ITEM_TYPE_ZH.get(category, category)}，不能装备（只有武器/护甲/饰品可装备）")
+    if category != SLOT_CATEGORY[slot]:
+        raise ValueError(f"【{item}】是{ITEM_TYPE_ZH[category]}，不能装到{EQUIP_SLOT_ZH[slot]}槽位（只能装到{ITEM_TYPE_ZH[category]}槽）")
     equip = _equipment(character)
     replaced = equip.get(slot)
     if replaced == item:
@@ -403,13 +441,16 @@ def unequip_item(character: dict, slot: str) -> dict:
 
 
 def add_item(character: dict, name: str, description: str = "", quantity: int = 1,
-             damage: str = "", ac_bonus: int = 0, quality: str = "") -> dict:
+             damage: str = "", ac_bonus: int = 0, quality: str = "", item_type: str = "") -> dict:
     """获得物品入背包：同名合并数量。返回最新背包状态。
     金币（名称含『金币』）不入背包，直接累计到 gold 字段。
+    item_type 分类白名单：weapon/armor/trinket/consumable/other；不传按名称关键词推断。
     装备数值（damage/ac_bonus/quality）由引擎按官方 SRD 白名单校验——AI 可生成特定装备（如家族传承物），
     但数值必须符合官方（damage ∈ SRD 骰面、ac_bonus ∈ 官方 AC、quality 三档），非法拒绝。"""
     if not isinstance(quantity, int) or isinstance(quantity, bool) or not (1 <= quantity <= 99):
         raise ValueError("数量必须是 1-99 的整数")
+    if item_type and item_type not in ITEM_TYPES:
+        raise ValueError(f"物品分类必须是：{'/'.join(ITEM_TYPE_ZH.values())}")
     if "金币" in name:
         character["gold"] = _gold(character) + quantity
         return {"type": "gold", "gold": character["gold"], "note": f"获得 {quantity} 金币"}
@@ -427,6 +468,8 @@ def add_item(character: dict, name: str, description: str = "", quantity: int = 
     for it in items:
         if it["name"] == name:
             it["quantity"] += quantity
+            if item_type:
+                it["category"] = item_type
             if damage:  # 同名合并时数值字段保持一致（取新值）
                 it["damage"] = damage
             if ac_bonus:
@@ -434,7 +477,8 @@ def add_item(character: dict, name: str, description: str = "", quantity: int = 
             if quality:
                 it["quality"] = quality
             return {"type": "inventory", "item": it, "total": len(items), "note": "数量增加"}
-    item = {"name": name, "description": description, "quantity": quantity}
+    item = {"name": name, "description": description, "quantity": quantity,
+            "category": item_type or _guess_category(name)}
     if damage:
         item["damage"] = damage
     if ac_bonus:
@@ -505,7 +549,9 @@ def buy_item(character: dict, item: str, quantity: int = 1) -> dict:
     if _gold(character) < cost:
         raise ValueError(f"金币不足（需要 {cost}，现有 {_gold(character)}）")
     character["gold"] -= cost
-    add_item(character, item, spec["desc"], quantity)
+    add_item(character, item, spec["desc"], quantity,
+             damage=spec.get("damage", ""), ac_bonus=spec.get("ac_bonus", 0),
+             quality=spec.get("quality", ""), item_type=spec.get("category", ""))
     return {"type": "shop", "item": spec["name"], "quantity": quantity, "cost": cost,
             "gold": character["gold"], "note": f"购得 {spec['name']} ×{quantity}"}
 
@@ -1017,7 +1063,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "equip_item",
-            "description": "装备物品：从背包放入槽位（weapon=武器/armor=护甲/trinket=饰品）。玩家表示穿戴/装备某物品时调用；同槽位已有装备自动放回背包。",
+            "description": "装备物品：从背包放入槽位（weapon=武器/armor=护甲/trinket=饰品）。玩家表示穿戴/装备某物品时调用；同槽位已有装备自动放回背包。槽位必须与物品分类匹配（武器→weapon 槽/护甲→armor 槽/饰品→trinket 槽），消耗品和杂物不能装备；装错槽位会被引擎拒绝。",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1140,7 +1186,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "add_item",
-            "description": "物品入背包。玩家获得/拾取/购买/搜刮到物品（战利品、药水、任务物品、金币外的财物）时必须调用，记录名称/简述/数量。生成武器/护甲类装备时（含特定/传承物品）必须传官方数值：damage 用 SRD 官方伤害骰（如战斧 1d12、长剑 1d8、匕首 1d4），ac_bonus 用官方护甲 AC 加值（如皮甲 1、链甲衫 3、盾牌 2），quality 可选（普通/精良/稀有，精良伤害+1 稀有+2）；非法数值会被拒绝。",
+            "description": "物品入背包。玩家获得/拾取/购买/搜刮到物品（战利品、药水、任务物品、金币外的财物）时必须调用，记录名称/简述/数量。生成武器/护甲类装备时（含特定/传承物品）必须传官方数值：damage 用 SRD 官方伤害骰（如战斧 1d12、长剑 1d8、匕首 1d4），ac_bonus 用官方护甲 AC 加值（如皮甲 1、链甲衫 3、盾牌 2），quality 可选（普通/精良/稀有，精良伤害+1 稀有+2）；非法数值会被拒绝。item_type 分类：武器/护甲/饰品/消耗品/杂物，武器护甲饰品可装备；分类影响能装到哪个槽位（武器只能装武器槽）。",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1148,8 +1194,9 @@ TOOLS = [
                     "description": {"type": "string", "description": "物品简述（1 句话）"},
                     "quantity": {"type": "integer", "description": "数量，默认 1（1-99）"},
                     "damage": {"type": "string", "description": "官方伤害骰（武器类必传），如 1d12"},
-                    "ac_bonus": {"type": "integer", "description": "官方护甲 AC（护甲类必传），如 11、13、2"},
+                    "ac_bonus": {"type": "integer", "description": "官方护甲 AC 加值（护甲类必传），如 1、3、2"},
                     "quality": {"type": "string", "enum": ["普通", "精良", "稀有"], "description": "品质，默认普通"},
+                    "item_type": {"type": "string", "enum": ["weapon", "armor", "trinket", "consumable", "other"], "description": "物品分类：weapon=武器/armor=护甲/trinket=饰品/consumable=消耗品/other=杂物；不传按名称推断"},
                 },
                 "required": ["name"],
             },

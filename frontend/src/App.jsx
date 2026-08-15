@@ -24,6 +24,33 @@ const EQUIP_SLOTS = ["weapon", "armor", "trinket"];
 const EQUIP_SLOT_ZH = { weapon: "武器", armor: "护甲", trinket: "饰品" };
 const EQUIP_ICONS = { weapon: "⚔️", armor: "🛡️", trinket: "✨" };
 
+// 物品分类展示（与后端 ITEM_TYPES 一致）
+const CATEGORY_META = {
+  weapon: { icon: "⚔️", zh: "武器" },
+  armor: { icon: "🛡️", zh: "护甲" },
+  trinket: { icon: "✨", zh: "饰品" },
+  consumable: { icon: "🧪", zh: "消耗品" },
+  other: { icon: "📦", zh: "杂物" },
+};
+const CATEGORY_ORDER = ["weapon", "armor", "trinket", "consumable", "other"];
+// 分类 → 可装备槽位（消耗品/杂物返回 null = 不可装备）
+function slotForCategory(cat) {
+  return { weapon: "weapon", armor: "armor", trinket: "trinket" }[cat] || null;
+}
+// 旧存档物品无 category 时的前端兜底推断（与后端 _guess_category 关键词一致）
+function guessCat(name) {
+  const W = ["剑", "刀", "匕首", "弓", "弩", "箭", "矢", "斧", "锤", "杖", "枪", "矛", "镰", "镖", "刃", "棒", "鞭", "镐"];
+  const A = ["甲", "盾", "铠", "袍", "盔", "手套", "靴", "披风", "斗篷", "胸甲", "护腕"];
+  const T = ["戒指", "项链", "坠饰", "护符", "吊坠", "徽章", "宝石", "水晶", "护身符", "耳环", "手镯"];
+  const C = ["药水", "卷轴", "食物", "干粮", "面包", "肉", "酒", "水", "草药", "毒", "油", "火把", "圣水", "药剂", "口粮"];
+  if (W.some((k) => name.includes(k))) return "weapon";
+  if (A.some((k) => name.includes(k))) return "armor";
+  if (T.some((k) => name.includes(k))) return "trinket";
+  if (C.some((k) => name.includes(k))) return "consumable";
+  return "other";
+}
+const itemCat = (it) => it.category || guessCat(it.name);
+
 // ---- 中文化映射（展示层；value/key 保持英文供 SRD 数据与工具调用使用）----
 const ZH = {
   // 种族
@@ -807,6 +834,7 @@ function formatTool(evt) {
 function GameView({ character, messages, input, busy, inCombat, setInput, send, sendText, bottomRef, onNewGame, sessionId, onCharacterUpdate }) {
   const c = character;
   const [modal, setModal] = useState(null); // null | "character" | "bag" | "world" | "quests" | "shop" | "npcs"
+  const [selItem, setSelItem] = useState(null); // 背包格子选中的物品（查看详情）
   const [worldTab, setWorldTab] = useState("map"); // 世界面板子页签：map | lore | state
   const [shopItems, setShopItems] = useState([]);
   const [worldMap, setWorldMap] = useState({});
@@ -1124,42 +1152,79 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
             {modal === "bag" && (
               <div className="modal-body">
                 <div className="shop-gold">💰 金币：{c.gold ?? 0}</div>
-                <h4>⚔️ 已装备</h4>
-                {c.equipment && Object.values(c.equipment).some(Boolean) ? (
-                  Object.entries(c.equipment).map(([slot, item]) => (
-                    <div key={slot} className="modal-item">
-                      <div><b>{EQUIP_SLOT_ZH[slot]}</b>{item ? <span className="equip-item"> · {item}</span> : <span className="equip-empty"> 空</span>}</div>
-                      {item && <button className="modal-btn" onClick={() => unequipItem(slot)} disabled={busy}>卸下</button>}
-                    </div>
-                  ))
-                ) : (
-                  <p className="modal-empty">尚未装备任何物品。</p>
-                )}
-                <h4>🎒 物品{c.inventory?.length ? `（${c.inventory.length} 类）` : "（空）"}</h4>
-                {!c.inventory?.length && <p className="modal-empty">背包空空如也——战利品、购买与搜刮会自动入库。</p>}
-                {(c.inventory || []).map((it, i) => (
-                  <div key={i} className="modal-item" title={it.description || ""}>
-                    <div>
-                      <b>{it.name}</b>
-                      {it.quantity > 1 && <span className="inv-qty"> ×{it.quantity}</span>}
-                      {it.quality && <span className={`item-quality q-${it.quality}`}>{it.quality}</span>}
-                      {(it.damage || it.ac_bonus) && (
-                        <span className="shop-price">
-                          {it.damage ? ` ⚔️${it.damage}` : ""}{it.ac_bonus ? ` 🛡️AC+${it.ac_bonus}` : ""}
-                        </span>
-                      )}
-                      {it.description && <div className="modal-desc">{it.description}</div>}
-                    </div>
-                    <div className="inv-equip">
-                      {EQUIP_SLOTS.map((slot) => (
-                        <button key={slot} className="equip-btn" title={`装备到${EQUIP_SLOT_ZH[slot]}栏`}
-                          disabled={busy} onClick={() => equipItem(it.name, slot)}>
-                          {EQUIP_ICONS[slot]}
-                        </button>
-                      ))}
-                    </div>
+                {/* 选中物品详情条（消耗品/杂物点击查看） */}
+                {selItem && (
+                  <div className="inv-detail">
+                    <b>{CATEGORY_META[itemCat(selItem)].icon} {selItem.name}</b>
+                    <span>{selItem.description || "（无描述）"}</span>
+                    {selItem.quantity > 1 && <em>×{selItem.quantity}</em>}
+                    <button className="modal-btn" onClick={() => setSelItem(null)}>✕</button>
                   </div>
-                ))}
+                )}
+                {/* 装备槽位大格子 */}
+                <h4>⚙️ 已装备</h4>
+                <div className="equip-grid">
+                  {EQUIP_SLOTS.map((slot) => {
+                    const item = c.equipment?.[slot];
+                    const st = c.equipment_stats?.[slot] || {};
+                    return (
+                      <div key={slot} className={`equip-slot ${item ? "filled" : ""}`}
+                        title={item ? "点击卸下" : `空${EQUIP_SLOT_ZH[slot]}槽`}
+                        onClick={() => item && !busy && unequipItem(slot)}>
+                        <div className="equip-slot-icon">{EQUIP_ICONS[slot]}</div>
+                        <div className="equip-slot-name">{item || "空"}</div>
+                        {item && (
+                          <div className="equip-slot-stats">
+                            {st.damage && <span>⚔️{st.damage}{st.damage_bonus ? `+${st.damage_bonus}` : ""}</span>}
+                            {st.ac_bonus ? <span>🛡️AC+{st.ac_bonus}</span> : null}
+                            {st.quality && <span className={`item-quality q-${st.quality}`}>{st.quality}</span>}
+                          </div>
+                        )}
+                        <div className="equip-slot-hint">{EQUIP_SLOT_ZH[slot]}{item ? "·点击卸下" : ""}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* 分类分区物品格子 */}
+                {!c.inventory?.length && <p className="modal-empty">背包空空如也——战利品、购买与搜刮会自动入库。</p>}
+                {CATEGORY_ORDER.map((cat) => {
+                  const items = (c.inventory || []).filter((it) => itemCat(it) === cat);
+                  if (!items.length) return null;
+                  return (
+                    <div key={cat} className="inv-section">
+                      <h4>{CATEGORY_META[cat].icon} {CATEGORY_META[cat].zh}（{items.length}）</h4>
+                      <div className="inv-grid">
+                        {items.map((it, i) => {
+                          const slot = slotForCategory(itemCat(it));
+                          return (
+                            <div key={i} className={`inv-cell${slot ? " eq" : ""}`}
+                              title={slot ? `点击装备到${EQUIP_SLOT_ZH[slot]}栏` : (it.description || "查看详情")}
+                              onClick={() => {
+                                if (slot && !busy) {
+                                  setSelItem(null);
+                                  equipItem(it.name, slot);
+                                } else {
+                                  setSelItem(it);
+                                }
+                              }}>
+                              <div className="inv-cell-icon">{CATEGORY_META[itemCat(it)].icon}</div>
+                              <div className="inv-cell-name">{it.name}</div>
+                              <div className="inv-cell-meta">
+                                {it.quantity > 1 && <span>×{it.quantity}</span>}
+                                {it.quality && <span className={`item-quality q-${it.quality}`}>{it.quality}</span>}
+                              </div>
+                              <div className="inv-cell-stats">
+                                {it.damage ? `⚔️${it.damage}${it.damage_bonus ? `+${it.damage_bonus}` : ""}` : ""}
+                                {it.ac_bonus ? `🛡️AC+${it.ac_bonus}` : ""}
+                                {slot && !it.damage && !it.ac_bonus ? "可装备" : ""}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
             {modal === "world" && (

@@ -1655,3 +1655,138 @@ button.ghost {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
 }
+
+/* ---- 背包物品栏（格子排版） ---- */
+.equip-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.equip-slot {
+  border: 1px dashed #6b4f2a;
+  border-radius: 10px;
+  background: #1d1710;
+  padding: 8px 6px;
+  text-align: center;
+  cursor: default;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: background 0.15s;
+}
+.equip-slot.filled {
+  border-style: solid;
+  border-color: #8a6a3a;
+  background: #2a2013;
+  cursor: pointer;
+}
+.equip-slot.filled:hover {
+  background: #352814;
+}
+.equip-slot-icon {
+  font-size: 22px;
+}
+.equip-slot-name {
+  font-size: 13px;
+  color: #e8d5a8;
+  font-weight: 600;
+  line-height: 1.25;
+  word-break: break-all;
+}
+.equip-slot-stats {
+  font-size: 11px;
+  color: #b89b5e;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+.equip-slot-hint {
+  font-size: 10px;
+  color: #6a6355;
+}
+.inv-section {
+  margin-bottom: 12px;
+}
+.inv-section h4 {
+  margin: 8px 0 6px;
+  font-size: 13px;
+  color: #c9a76c;
+}
+.inv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+.inv-cell {
+  border: 1px solid #4a3a22;
+  border-radius: 10px;
+  background: #1d1710;
+  padding: 8px 6px;
+  text-align: center;
+  cursor: default;
+  min-height: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.inv-cell.eq {
+  cursor: pointer;
+  border-color: #5a6b3a;
+}
+.inv-cell.eq:hover {
+  background: #26301a;
+  border-color: #7a9a4a;
+}
+.inv-cell-icon {
+  font-size: 20px;
+}
+.inv-cell-name {
+  font-size: 12px;
+  color: #e8d5a8;
+  line-height: 1.2;
+  word-break: break-all;
+}
+.inv-cell-meta {
+  font-size: 11px;
+  color: #8a7a55;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.inv-cell-stats {
+  font-size: 11px;
+  color: #b89b5e;
+  line-height: 1.3;
+}
+.inv-detail {
+  border: 1px solid #6b4f2a;
+  border-radius: 10px;
+  background: #2a2013;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #d8cba8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.inv-detail b {
+  color: #f0dfb0;
+}
+.inv-detail span {
+  flex: 1;
+  min-width: 120px;
+}
+.inv-detail em {
+  color: #8a7a55;
+  font-style: normal;
+}
