@@ -215,7 +215,7 @@ def test_system_prompt_location_fallback():
     c = {"name": "Legacy", "race": "Human", "class_name": "Fighter",
          "abilities": {}, "skills": {}, "inventory": [], "lore": [], "world_state": {}}
     prompt = build_system_prompt(c)
-    assert "醉龙酒馆" in prompt, "无 location 字段应 fallback 酒馆"
+    assert "你现在在：醉龙酒馆" in prompt, "无 location 字段应 fallback 酒馆（位置段注入）"
     c["location"] = "unknown_zone"
     prompt2 = build_system_prompt(c)
     assert "当前位置" not in prompt2, "未知区域跳过注入（容错不抛错）"

@@ -105,8 +105,10 @@ def main():
     print("\n=== 区域清单 ===")
     for k, v in WORLD_MAP.items():
         print(f"- {k}（{v['name']}）shop={v['shop_level']} 邻接={v['neighbors']}")
-    print("\n结论：", "全部通过" if not graph_problems and not opening_problems else "存在问题，见上")
-    return 1 if (graph_problems or [p for p in opening_problems if "为空" not in p]) else 0
+    real_issues = [p for p in opening_problems if "为空" not in p]
+    ok = not graph_problems and not real_issues
+    print("\n结论：", "全部通过" if ok else "存在问题，见上")
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
