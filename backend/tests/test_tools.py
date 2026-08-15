@@ -1251,3 +1251,35 @@ def test_add_item_category_validation():
     assert any(it["category"] == "armor" for it in c["inventory"])
     buy_item(c, "治疗药水", 1)
     assert any(it["category"] == "consumable" for it in c["inventory"])
+
+
+def test_execute_tool_item_type_passthrough():
+    """execute_tool（LLM 调用链）透传 item_type：显式分类不被丢弃。"""
+    c = create_character("ToolCat", "Human", "Fighter")
+    r = execute_tool("add_item", {"name": "勇气勋章", "description": "战友赠予",
+                                  "item_type": "trinket"}, c)
+    assert r["item"]["category"] == "trinket", "execute_tool 应透传 item_type"
+    r2 = equip_item(c, "勇气勋章", "trinket")
+    assert r2["equipment"]["trinket"] == "勇气勋章"
+
+
+def test_equip_roundtrip_keeps_stats():
+    """替换/卸下回包保留数值字段：AI 生成装备再装备数值不归零。"""
+    c = create_character("RoundCat", "Human", "Fighter")
+    add_item(c, "祖传战斧", "矮人铁匠之作", 1, damage="1d12", quality="稀有", item_type="weapon")
+    equip_item(c, "祖传战斧", "weapon")
+    # 同槽替换：旧战斧回包带数值
+    add_item(c, "铁剑", "普通铁剑", 1, damage="1d8", item_type="weapon")
+    equip_item(c, "铁剑", "weapon")
+    back = next(it for it in c["inventory"] if it["name"] == "祖传战斧")
+    assert back.get("damage") == "1d12" and back.get("quality") == "稀有"
+    assert back.get("category") == "weapon", "回包应带分类"
+    # 卸下回包带数值
+    unequip_item(c, "weapon")
+    back2 = next(it for it in c["inventory"] if it["name"] == "铁剑")
+    assert back2.get("damage") == "1d8"
+    # 再装备：attack 仍按 1d12 裁定
+    encounter(c, ["Goblin"])
+    equip_item(c, "祖传战斧", "weapon")
+    r = attack(c, "Goblin")
+    assert r["weapon_dice"] == "1d12", "回包后数值不丢，attack 按 1d12"

@@ -355,6 +355,8 @@ def _item_numeric_stats(character: dict, item: str) -> dict:
         "damage_bonus": entry.get("damage_bonus", 0),
         "trait_name": entry.get("trait_name", ""),
         "trait_damage": entry.get("trait_damage", ""),
+        "category": entry.get("category", ""),
+        "description": entry.get("description", ""),
     }
 
 
@@ -395,10 +397,12 @@ def equip_item(character: dict, item: str, slot: str) -> dict:
     found["quantity"] -= 1
     if found["quantity"] <= 0:
         items.remove(found)
-    # 旧装备回背包（合并数量）+ 回退其 AC 加成（stats 缓存缺失时回退查 SHOP_ITEMS——旧存档兼容）
+    # 旧装备回背包（合并数量 + 带数值字段，防 AI 生成装备数值丢失）+ 回退其 AC 加成
     if replaced and replaced != item:
-        add_item(character, replaced, quantity=1)
         old_stats = (character.get("equipment_stats") or {}).get(slot) or _item_numeric_stats(character, replaced)
+        add_item(character, replaced, old_stats.get("description", ""), 1,
+                 old_stats.get("damage", ""), old_stats.get("ac_bonus", 0),
+                 old_stats.get("quality", ""), old_stats.get("category", ""))
         character["ac"] = character.get("ac", 10) - old_stats.get("ac_bonus", 0)
     equip[slot] = item
     # 缓存装备数值（背包物品字段 > SHOP_ITEMS）
@@ -435,7 +439,9 @@ def unequip_item(character: dict, slot: str) -> dict:
     if ac_bonus:
         character["ac"] = character.get("ac", 10) - ac_bonus
     _equipment_stats(character).pop(slot, None)  # 清除数值缓存
-    add_item(character, item, quantity=1)  # 回背包（同名合并）
+    add_item(character, item, stats.get("description", ""), 1,
+             stats.get("damage", ""), stats.get("ac_bonus", 0),
+             stats.get("quality", ""), stats.get("category", ""))  # 回背包（同名合并 + 带数值字段）
     return {"type": "equipment", "slot": slot, "item": None, "equipment": equip,
             "ac": character.get("ac"), "note": f"已卸下【{item}】，放回背包"}
 
@@ -1290,7 +1296,8 @@ def execute_tool(name: str, args: dict, character: dict | None = None) -> dict:
             return buy_item(character, args["item"], args.get("quantity", 1))
         if name == "add_item":
             return add_item(character, args["name"], args.get("description", ""), args.get("quantity", 1),
-                            args.get("damage", ""), args.get("ac_bonus", 0), args.get("quality", ""))
+                            args.get("damage", ""), args.get("ac_bonus", 0), args.get("quality", ""),
+                            args.get("item_type", ""))
         if name == "remove_item":
             return remove_item(character, args["name"], args.get("quantity", 1))
         if name == "use_feature":

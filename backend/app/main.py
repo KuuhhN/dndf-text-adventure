@@ -209,7 +209,7 @@ def equip_api(req: EquipRequest):
     try:
         result = equip_item(s["character"], req.item, req.slot)
         game.update_character(req.session_id, s["character"])
-    except ValueError as e:
+    except (ValueError, KeyError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     return {"result": result, "character": s["character"]}
 
@@ -223,7 +223,7 @@ def unequip_api(req: UnequipRequest):
     try:
         result = unequip_item(s["character"], req.slot)
         game.update_character(req.session_id, s["character"])
-    except ValueError as e:
+    except (ValueError, KeyError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     return {"result": result, "character": s["character"]}
 
