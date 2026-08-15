@@ -769,8 +769,8 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
   function openModal(name) {
     setModalMsg("");
     if (name === "shop" && shopItems.length === 0) {
-      fetch("/api/shop").then((r) => r.json()).then((d) => setShopItems(d.items || []))
-        .catch(() => setModalMsg("❌ 商店加载失败（后端未启动？）"));
+      fetch(`${API}/api/shop`).then((r) => r.json()).then((d) => setShopItems(d.items || []))
+        .catch(() => setModalMsg("❌ 商店加载失败，请重试"));
     }
     setModal(name);
   }
