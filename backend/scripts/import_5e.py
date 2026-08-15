@@ -45,10 +45,11 @@ def main():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     total = 0
+    missing = []
     for table, (prefix, fields) in TABLES.items():
         path = os.path.join(SRC_DIR, f"{prefix}.json")
         if not os.path.exists(path):
-            print(f"  跳过 {table}（{os.path.basename(path)} 不存在）")
+            missing.append(f"{table}（{os.path.basename(path)}）")
             continue
         with open(path, encoding="utf-8") as f:
             items = json.load(f)
@@ -75,7 +76,7 @@ def main():
     for table, prefix in SUPPLEMENT_2024.items():
         path = os.path.join(SRC2024, f"{prefix}.json")
         if not os.path.exists(path):
-            print(f"  跳过 2024:{table}（{os.path.basename(path)} 不存在）")
+            missing.append(f"2024:{table}（{os.path.basename(path)}）")
             continue
         with open(path, encoding="utf-8") as f:
             items = json.load(f)
@@ -88,9 +89,16 @@ def main():
             )
         total += len(items)
         print(f"  2024:{table}: {len(items)} 条")
+    if missing:
+        conn.close()
+        print("错误：数据源缺失，无法导入（请先执行：git clone https://github.com/5e-bits/5e-database 到 backend/data/5e-database/）")
+        for m in missing:
+            print(f"  - 缺失 {m}")
+        return 1
     conn.commit()
     conn.close()
     print(f"完成，共导入 {total} 条 -> {DB_PATH}")
+    return 0
 
 
 if __name__ == "__main__":

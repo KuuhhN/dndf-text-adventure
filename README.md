@@ -9,7 +9,7 @@ AI 地下城主实时生成剧情，玩家通过文字自由行动——但**所
 | 亮点 | 说明 |
 |---|---|
 | **两阶段协议（LLM 不能造数）** | 玩家行动 → LLM 决定是否判定 → 规则引擎执行掷骰/检定/攻击/伤害 → 真实结果注入 → LLM 据此写叙事。杜绝 AI 跑团最常见的「瞎编骰子」问题 |
-| **function calling 工具层（11 个）** | roll_dice / ability_check / attack / encounter / enemy_attack / lookup / post_quest / add_item / remove_item / use_feature，OpenAI 兼容 function calling 驱动 |
+| **function calling 工具层（10 个）** | roll_dice / ability_check / attack / encounter / enemy_attack / lookup / post_quest / add_item / remove_item / use_feature，OpenAI 兼容 function calling 驱动 |
 | **BG3 式 6 步创建向导** | 种族 → 职业 → 属性（标准购点 27 点严格按 PHB 花费表 / 4d6 骰点）→ 技能 → 专长·背景（2024 SRD）→ 名字；每步可查看中文特性详情 |
 | **5e SRD 规则数据底座** | 本地导入 [5e-database](https://github.com/5e-bits/5e-database)（2014 SRD + 2024 专长/背景，共 1870 条），SQLite 查询；117 条规则描述由 LLM 生成「一句话剧本用途」中文摘要 |
 | **技能栏位系统（用了即消耗）** | ⚡可用能力栏（二次呼吸/狂暴/吐息武器/圣疗/吟游激励/狡诈行动）：动作类型 + 次数徽章（×N·短休/长休），引擎结算效果并扣减次数，耗尽灰态「已用完」；🎯技能面板 18 技能一句话用途 + 点击即用 |
