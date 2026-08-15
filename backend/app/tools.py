@@ -368,6 +368,34 @@ def _item_category(character: dict, name: str) -> str:
     return _guess_category(name)
 
 
+def _restore_item(character: dict, name: str, description: str = "", quantity: int = 1,
+                  damage: str = "", ac_bonus: int = 0, quality: str = "", item_type: str = "") -> None:
+    """装备回背包（同名合并）：替换/卸下专用。
+    跳过官方数值校验——数值来自已装备物品（旧存档非法数值如 quality=神器 也能回包，防物品丢失）。"""
+    items = _inventory(character)
+    for it in items:
+        if it["name"] == name:
+            it["quantity"] += quantity
+            if damage:
+                it["damage"] = damage
+            if ac_bonus:
+                it["ac_bonus"] = ac_bonus
+            if quality:
+                it["quality"] = quality
+            if item_type:
+                it["category"] = item_type
+            return
+    item = {"name": name, "description": description, "quantity": quantity,
+            "category": item_type or _guess_category(name)}
+    if damage:
+        item["damage"] = damage
+    if ac_bonus:
+        item["ac_bonus"] = ac_bonus
+    if quality:
+        item["quality"] = quality
+    items.append(item)
+
+
 def equip_item(character: dict, item: str, slot: str) -> dict:
     """装备物品：从背包放入指定槽位（weapon/armor/trinket）。同槽位已有装备自动回包。
     护甲/盾牌按引擎数值增减 AC（ac_bonus）；武器伤害骰由 attack 读取（damage/品质/词条）。
@@ -400,9 +428,9 @@ def equip_item(character: dict, item: str, slot: str) -> dict:
     # 旧装备回背包（合并数量 + 带数值字段，防 AI 生成装备数值丢失）+ 回退其 AC 加成
     if replaced and replaced != item:
         old_stats = (character.get("equipment_stats") or {}).get(slot) or _item_numeric_stats(character, replaced)
-        add_item(character, replaced, old_stats.get("description", ""), 1,
-                 old_stats.get("damage", ""), old_stats.get("ac_bonus", 0),
-                 old_stats.get("quality", ""), old_stats.get("category", ""))
+        _restore_item(character, replaced, old_stats.get("description", ""), 1,
+                      old_stats.get("damage", ""), old_stats.get("ac_bonus", 0),
+                      old_stats.get("quality", ""), old_stats.get("category", ""))
         character["ac"] = character.get("ac", 10) - old_stats.get("ac_bonus", 0)
     equip[slot] = item
     # 缓存装备数值（背包物品字段 > SHOP_ITEMS）
@@ -439,9 +467,9 @@ def unequip_item(character: dict, slot: str) -> dict:
     if ac_bonus:
         character["ac"] = character.get("ac", 10) - ac_bonus
     _equipment_stats(character).pop(slot, None)  # 清除数值缓存
-    add_item(character, item, stats.get("description", ""), 1,
-             stats.get("damage", ""), stats.get("ac_bonus", 0),
-             stats.get("quality", ""), stats.get("category", ""))  # 回背包（同名合并 + 带数值字段）
+    _restore_item(character, item, stats.get("description", ""), 1,
+                  stats.get("damage", ""), stats.get("ac_bonus", 0),
+                  stats.get("quality", ""), stats.get("category", ""))  # 回背包（合并 + 带数值字段）
     return {"type": "equipment", "slot": slot, "item": None, "equipment": equip,
             "ac": character.get("ac"), "note": f"已卸下【{item}】，放回背包"}
 

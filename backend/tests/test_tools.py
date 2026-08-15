@@ -1283,3 +1283,22 @@ def test_equip_roundtrip_keeps_stats():
     equip_item(c, "祖传战斧", "weapon")
     r = attack(c, "Goblin")
     assert r["weapon_dice"] == "1d12", "回包后数值不丢，attack 按 1d12"
+
+
+def test_restore_item_skips_validation():
+    """旧存档非法数值装备（quality=神器 等）替换/卸下回包不丢物品（review should-fix 回归）。"""
+    c = create_character("LegacyCat", "Human", "Fighter")
+    # 旧存档时代遗留：非法数值装备直接装备
+    add_item(c, "传承之剑", "旧存档遗留", 1, damage="1d8")
+    equip_item(c, "传承之剑", "weapon")
+    # 篡改装备数值为历史非法值（模拟旧存档）
+    c["equipment_stats"]["weapon"]["quality"] = "神器"
+    # 替换：非法数值回包不抛错、物品不丢
+    add_item(c, "新剑", "新装备", 1, damage="1d8")
+    equip_item(c, "新剑", "weapon")
+    back = next(it for it in c["inventory"] if it["name"] == "传承之剑")
+    assert back["quantity"] == 1 and back.get("quality") == "神器", "非法数值回包不丢物品"
+    # 卸下同理
+    c["equipment_stats"]["weapon"]["damage"] = "1d999"
+    unequip_item(c, "weapon")
+    assert any(it["name"] == "新剑" for it in c["inventory"]), "卸下非法数值装备不丢"
