@@ -1302,3 +1302,25 @@ def test_restore_item_skips_validation():
     c["equipment_stats"]["weapon"]["damage"] = "1d999"
     unequip_item(c, "weapon")
     assert any(it["name"] == "新剑" for it in c["inventory"]), "卸下非法数值装备不丢"
+
+
+def test_restore_item_keeps_trait():
+    """稀有匕首替换/卸下回包带淬毒词条：再装备 trait 不丢（review 复查 should-fix 回归）。"""
+    c = create_character("TraitCat", "Human", "Fighter")
+    # 模拟 SHOP 购买稀有匕首后的物品状态（数值+词条字段）
+    c["inventory"].append({"name": "稀有匕首", "description": "淬毒黑曜", "quantity": 1,
+                           "damage": "1d4", "quality": "稀有", "damage_bonus": 2,
+                           "trait_name": "淬毒", "trait_damage": "1d4", "category": "weapon"})
+    equip_item(c, "稀有匕首", "weapon")
+    # 替换
+    add_item(c, "铁剑", "普通铁剑", 1, damage="1d8", item_type="weapon")
+    equip_item(c, "铁剑", "weapon")
+    back = next(it for it in c["inventory"] if it["name"] == "稀有匕首")
+    assert back.get("trait_name") == "淬毒" and back.get("trait_damage") == "1d4", "替换回包应带词条"
+    # 再装备：attack 带淬毒
+    encounter(c, ["Goblin"])
+    equip_item(c, "稀有匕首", "weapon")
+    from unittest.mock import patch
+    with patch("app.tools.roll", return_value={"rolls": [20], "total": 20, "mod": 0, "crit": True}):
+        r = attack(c, "Goblin")
+    assert r.get("trait") == "淬毒", "重装后淬毒词条仍生效"

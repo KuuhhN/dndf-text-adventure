@@ -369,7 +369,8 @@ def _item_category(character: dict, name: str) -> str:
 
 
 def _restore_item(character: dict, name: str, description: str = "", quantity: int = 1,
-                  damage: str = "", ac_bonus: int = 0, quality: str = "", item_type: str = "") -> None:
+                  damage: str = "", ac_bonus: int = 0, quality: str = "", item_type: str = "",
+                  trait_name: str = "", trait_damage: str = "") -> None:
     """装备回背包（同名合并）：替换/卸下专用。
     跳过官方数值校验——数值来自已装备物品（旧存档非法数值如 quality=神器 也能回包，防物品丢失）。"""
     items = _inventory(character)
@@ -384,6 +385,9 @@ def _restore_item(character: dict, name: str, description: str = "", quantity: i
                 it["quality"] = quality
             if item_type:
                 it["category"] = item_type
+            if trait_name:
+                it["trait_name"] = trait_name
+                it["trait_damage"] = trait_damage
             return
     item = {"name": name, "description": description, "quantity": quantity,
             "category": item_type or _guess_category(name)}
@@ -393,6 +397,9 @@ def _restore_item(character: dict, name: str, description: str = "", quantity: i
         item["ac_bonus"] = ac_bonus
     if quality:
         item["quality"] = quality
+    if trait_name:
+        item["trait_name"] = trait_name
+        item["trait_damage"] = trait_damage
     items.append(item)
 
 
@@ -430,7 +437,8 @@ def equip_item(character: dict, item: str, slot: str) -> dict:
         old_stats = (character.get("equipment_stats") or {}).get(slot) or _item_numeric_stats(character, replaced)
         _restore_item(character, replaced, old_stats.get("description", ""), 1,
                       old_stats.get("damage", ""), old_stats.get("ac_bonus", 0),
-                      old_stats.get("quality", ""), old_stats.get("category", ""))
+                      old_stats.get("quality", ""), old_stats.get("category", ""),
+                      old_stats.get("trait_name", ""), old_stats.get("trait_damage", ""))
         character["ac"] = character.get("ac", 10) - old_stats.get("ac_bonus", 0)
     equip[slot] = item
     # 缓存装备数值（背包物品字段 > SHOP_ITEMS）
@@ -469,7 +477,8 @@ def unequip_item(character: dict, slot: str) -> dict:
     _equipment_stats(character).pop(slot, None)  # 清除数值缓存
     _restore_item(character, item, stats.get("description", ""), 1,
                   stats.get("damage", ""), stats.get("ac_bonus", 0),
-                  stats.get("quality", ""), stats.get("category", ""))  # 回背包（合并 + 带数值字段）
+                  stats.get("quality", ""), stats.get("category", ""),
+                  stats.get("trait_name", ""), stats.get("trait_damage", ""))  # 回背包（合并 + 带数值/词条字段）
     return {"type": "equipment", "slot": slot, "item": None, "equipment": equip,
             "ac": character.get("ac"), "note": f"已卸下【{item}】，放回背包"}
 
