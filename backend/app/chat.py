@@ -5,7 +5,10 @@
 LLM 永远不能自行编造骰子结果。
 """
 import json
+import logging
 from typing import AsyncIterator
+
+logger = logging.getLogger(__name__)
 
 from . import game, tools
 from .llm import LLMStreamError, stream_chat
