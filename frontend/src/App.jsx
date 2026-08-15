@@ -12,6 +12,11 @@ const LORE_CAT_ZH = {
   religion: "宗教",
 };
 
+// 装备槽位（与后端 tools.EQUIP_SLOTS 一致）
+const EQUIP_SLOTS = ["weapon", "armor", "trinket"];
+const EQUIP_SLOT_ZH = { weapon: "武器", armor: "护甲", trinket: "饰品" };
+const EQUIP_ICONS = { weapon: "⚔️", armor: "🛡️", trinket: "✨" };
+
 // ---- 中文化映射（展示层；value/key 保持英文供 SRD 数据与工具调用使用）----
 const ZH = {
   // 种族
@@ -832,6 +837,30 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
     }
   }
 
+  async function equipItem(item, slot) {
+    const r = await fetch(`${API}/api/equipment/equip`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, item, slot }),
+    });
+    const d = await r.json();
+    if (!r.ok) return setModalMsg(`❌ ${d.error || "装备失败"}`);
+    onCharacterUpdate(d.character);
+    setModalMsg(`✅ ${d.result?.note || "已装备"}`);
+  }
+
+  async function unequipItem(slot) {
+    const r = await fetch(`${API}/api/equipment/unequip`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, slot }),
+    });
+    const d = await r.json();
+    if (!r.ok) return setModalMsg(`❌ ${d.error || "卸下失败"}`);
+    onCharacterUpdate(d.character);
+    setModalMsg(`✅ ${d.result?.note || "已卸下"}`);
+  }
+
   const availableQuests = (c.quests || []).filter((q) => q.status !== "accepted");
   const todoQuests = (c.quests || []).filter((q) => q.status === "accepted");
   const hasQuestNotice = availableQuests.length > 0;
@@ -911,6 +940,24 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
               ))}
             </div>
           )}
+        {c.equipment && (Object.values(c.equipment).some(Boolean) ? (
+          <div className="equipment">
+            <h3>⚔️ 已装备</h3>
+            {Object.entries(c.equipment).map(([slot, item]) => (
+              <div key={slot} className="equip-row">
+                <span className="equip-slot">{EQUIP_SLOT_ZH[slot]}</span>
+                {item ? (
+                  <>
+                    <span className="equip-item">{item}</span>
+                    <button className="equip-btn" onClick={() => unequipItem(slot)} disabled={busy}>卸下</button>
+                  </>
+                ) : (
+                  <span className="equip-empty">空</span>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : null)}
         {c.inventory?.length > 0 && (
           <div className="inventory">
             <h3>🎒 背包 {c.gold > 0 && <small>· 💰 {c.gold} 金币</small>}</h3>
@@ -919,6 +966,14 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
                 <span className="inv-name">{it.name}</span>
                 {it.quantity > 1 && <span className="inv-qty">×{it.quantity}</span>}
                 {it.description && <span className="inv-desc">{it.description}</span>}
+                <div className="inv-equip">
+                  {EQUIP_SLOTS.map((slot) => (
+                    <button key={slot} className="equip-btn" title={`装备到${EQUIP_SLOT_ZH[slot]}栏`}
+                      disabled={busy} onClick={() => equipItem(it.name, slot)}>
+                      {EQUIP_ICONS[slot]}
+                    </button>
+                  ))}
+                </div>
               </div>
             ))}
           </div>

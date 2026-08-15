@@ -237,6 +237,7 @@ def create_character(
         "location": "tavern",
         "lore": [],
         "world_state": {},
+        "equipment": {"weapon": None, "armor": None, "trinket": None},
         "passives": [],
     }
     from .tools import init_feature_uses, init_passives  # 循环导入防护：tools 也 import character

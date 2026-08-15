@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from . import db, game
 from .chat import game_chat
 from .character import create_character
-from .tools import SHOP_ITEMS, WORLD_MAP, accept_quest, buy_item
+from .tools import SHOP_ITEMS, WORLD_MAP, accept_quest, buy_item, equip_item, unequip_item
 
 app = FastAPI(title="DNDF Text Adventure API")
 
@@ -34,6 +34,17 @@ class ShopBuyRequest(BaseModel):
     session_id: str
     item: str
     quantity: int = 1
+
+
+class EquipRequest(BaseModel):
+    session_id: str
+    item: str
+    slot: str
+
+
+class UnequipRequest(BaseModel):
+    session_id: str
+    slot: str
 
 
 class CreateCharacterRequest(BaseModel):
@@ -180,6 +191,34 @@ def shop_buy_api(req: ShopBuyRequest):
         return err
     try:
         result = buy_item(s["character"], req.item, req.quantity)
+        game.update_character(req.session_id, s["character"])
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    return {"result": result, "character": s["character"]}
+
+
+@app.post("/api/equipment/equip")
+def equip_api(req: EquipRequest):
+    """弹窗装备：背包物品 -> 槽位（同槽替换回包）。"""
+    s, err = _load_session_or_404(req.session_id)
+    if err:
+        return err
+    try:
+        result = equip_item(s["character"], req.item, req.slot)
+        game.update_character(req.session_id, s["character"])
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    return {"result": result, "character": s["character"]}
+
+
+@app.post("/api/equipment/unequip")
+def unequip_api(req: UnequipRequest):
+    """弹窗卸下装备：槽位 -> 背包。"""
+    s, err = _load_session_or_404(req.session_id)
+    if err:
+        return err
+    try:
+        result = unequip_item(s["character"], req.slot)
         game.update_character(req.session_id, s["character"])
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)

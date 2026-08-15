@@ -278,6 +278,57 @@ def test_change_location_flow():
     assert all(1 <= it["level"] <= 3 for it in SHOP_ITEMS) if SHOP_ITEMS else True
 
 
+def test_equipment_flow():
+    """装备系统：装备/同槽替换回包/卸下回包/槽位非法/不在包/路由。"""
+    from app.tools import equip_item, unequip_item, execute_tool
+    c = create_character("T", "Human", "Fighter")
+    add_item(c, "长剑", "精制铁剑", 1)
+    add_item(c, "皮甲", "轻便护甲", 1)
+    # 装备武器
+    r = equip_item(c, "长剑", "weapon")
+    assert r["equipment"]["weapon"] == "长剑" and c["inventory"] == [{"name": "皮甲", "description": "轻便护甲", "quantity": 1}]
+    # 装备护甲
+    equip_item(c, "皮甲", "armor")
+    assert c["equipment"]["armor"] == "皮甲" and c["inventory"] == []
+    # 同槽替换：再买长剑装武器，旧武器回包
+    add_item(c, "匕首", "备用", 1)
+    equip_item(c, "匕首", "weapon")
+    assert c["equipment"]["weapon"] == "匕首"
+    assert any(it["name"] == "长剑" for it in c["inventory"])  # 长剑回包
+    # 卸下回包
+    r2 = unequip_item(c, "weapon")
+    assert c["equipment"]["weapon"] is None
+    assert any(it["name"] == "匕首" for it in c["inventory"])
+    # 槽位非法
+    try:
+        equip_item(c, "匕首", "helmet")
+        assert False, "应报错"
+    except ValueError as e:
+        assert "槽位" in str(e)
+    try:
+        unequip_item(c, "helmet")
+        assert False, "应报错"
+    except ValueError as e:
+        assert "槽位" in str(e)
+    # 不在背包
+    try:
+        equip_item(c, "屠龙刀", "weapon")
+        assert False, "应报错"
+    except ValueError as e:
+        assert "背包中没有" in str(e)
+    # 空槽卸下
+    try:
+        unequip_item(c, "trinket")
+        assert False, "应报错"
+    except ValueError as e:
+        assert "没有装备" in str(e)
+    # execute_tool 路由
+    r3 = execute_tool("equip_item", {"item": "匕首", "slot": "armor"}, c)
+    assert r3["equipment"]["armor"] == "匕首"
+    r4 = execute_tool("unequip_item", {"slot": "armor"}, c)
+    assert r4["equipment"]["armor"] is None
+
+
 def test_world_state_flow():
     """世界状态：新增/覆盖/校验/上限/路由 + prompt 全量注入。"""
     from app.tools import update_world_state, execute_tool

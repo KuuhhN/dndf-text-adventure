@@ -287,6 +287,56 @@ def _inventory(character: dict) -> list[dict]:
     return character.setdefault("inventory", [])
 
 
+# 装备槽位（引擎白名单）
+EQUIP_SLOTS = ("weapon", "armor", "trinket")
+EQUIP_SLOT_ZH = {"weapon": "武器", "armor": "护甲", "trinket": "饰品"}
+
+
+def _equipment(character: dict) -> dict:
+    return character.setdefault("equipment", {"weapon": None, "armor": None, "trinket": None})
+
+
+def equip_item(character: dict, item: str, slot: str) -> dict:
+    """装备物品：从背包放入指定槽位（weapon/armor/trinket）。同槽位已有装备自动回包。"""
+    item = (item or "").strip()
+    slot = (slot or "").strip()
+    if slot not in EQUIP_SLOTS:
+        raise ValueError(f"装备槽位必须是：{'/'.join(EQUIP_SLOTS)}")
+    items = _inventory(character)
+    found = next((it for it in items if it["name"] == item), None)
+    if not found:
+        raise ValueError(f"背包中没有 {item}")
+    equip = _equipment(character)
+    replaced = equip.get(slot)
+    # 从背包扣 1 件（同名合并的物品扣数量）
+    found["quantity"] -= 1
+    if found["quantity"] <= 0:
+        items.remove(found)
+    # 旧装备回背包（合并数量）
+    if replaced and replaced != item:
+        add_item(character, replaced, quantity=1)
+    equip[slot] = item
+    note = f"已装备【{item}】到{EQUIP_SLOT_ZH[slot]}"
+    if replaced and replaced != item:
+        note += f"，{replaced} 已放回背包"
+    return {"type": "equipment", "slot": slot, "item": item, "equipment": equip, "note": note}
+
+
+def unequip_item(character: dict, slot: str) -> dict:
+    """卸下装备：从槽位放回背包。"""
+    slot = (slot or "").strip()
+    if slot not in EQUIP_SLOTS:
+        raise ValueError(f"装备槽位必须是：{'/'.join(EQUIP_SLOTS)}")
+    equip = _equipment(character)
+    item = equip.get(slot)
+    if not item:
+        raise ValueError(f"{EQUIP_SLOT_ZH[slot]}槽位没有装备")
+    equip[slot] = None
+    add_item(character, item, quantity=1)  # 回背包（同名合并）
+    return {"type": "equipment", "slot": slot, "item": None, "equipment": equip,
+            "note": f"已卸下【{item}】，放回背包"}
+
+
 def add_item(character: dict, name: str, description: str = "", quantity: int = 1) -> dict:
     """获得物品入背包：同名合并数量。返回最新背包状态。
     金币（名称含『金币』）不入背包，直接累计到 gold 字段。"""
@@ -848,6 +898,35 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "equip_item",
+            "description": "装备物品：从背包放入槽位（weapon=武器/armor=护甲/trinket=饰品）。玩家表示穿戴/装备某物品时调用；同槽位已有装备自动放回背包。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item": {"type": "string", "description": "物品名（中文），须在背包中"},
+                    "slot": {"type": "string", "enum": ["weapon", "armor", "trinket"], "description": "装备槽位"},
+                },
+                "required": ["item", "slot"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "unequip_item",
+            "description": "卸下装备：从槽位放回背包。玩家脱下/更换装备时调用。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "slot": {"type": "string", "enum": ["weapon", "armor", "trinket"], "description": "装备槽位"},
+                },
+                "required": ["slot"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "update_world_state",
             "description": "更新世界状态（动态追踪：主线进度/势力好感/关键关系/重要时限等）。世界状态变化时调用，LLM 每轮都能看到全部状态；再次调用同一 key 覆盖旧值。",
             "parameters": {
@@ -1025,6 +1104,10 @@ def execute_tool(name: str, args: dict, character: dict | None = None) -> dict:
                               args.get("reward", ""), args.get("status", "available"))
         if name == "update_world_state":
             return update_world_state(character, args["key"], args["value"], args.get("description", ""))
+        if name == "equip_item":
+            return equip_item(character, args["item"], args["slot"])
+        if name == "unequip_item":
+            return unequip_item(character, args["slot"])
         if name == "record_lore":
             return record_lore(character, args["title"], args["category"], args["content"],
                                args.get("keywords", ""))
