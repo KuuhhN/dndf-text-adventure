@@ -95,6 +95,32 @@ def _gold(character: dict) -> int:
     return character.setdefault("gold", 0)
 
 
+def _npcs(character: dict) -> list[dict]:
+    return character.setdefault("npcs", [])
+
+
+def register_npc(character: dict, name: str, identity: str = "", location: str = "",
+                 relationship: str = "陌生", notes: str = "") -> dict:
+    """记录/更新 NPC 档案：遇到有名字或重要互动的角色时调用。同名更新（位置/关系/备注刷新）。"""
+    if not name.strip():
+        raise ValueError("NPC 名称不能为空")
+    npcs = _npcs(character)
+    for n in npcs:
+        if n["name"] == name:
+            if identity:
+                n["identity"] = identity
+            if location:
+                n["location"] = location
+            n["relationship"] = relationship
+            if notes:
+                n["notes"] = notes
+            return {"type": "npc", "npc": n, "note": f"已更新 {name} 的档案"}
+    npc = {"name": name, "identity": identity, "location": location,
+           "relationship": relationship, "notes": notes}
+    npcs.append(npc)
+    return {"type": "npc", "npc": npc, "note": f"已记录 {name}"}
+
+
 # 酒馆/商店精选商品（D&D 5e 官方价格，中文名；价格由引擎定，防前端改包）
 SHOP_ITEMS = [
     {"name": "治疗药水", "price": 50, "desc": "饮下恢复 2d4+2 点生命值"},
@@ -676,6 +702,24 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "register_npc",
+            "description": "记录/更新 NPC 档案。玩家遇到有名字或重要互动的角色（酒馆老板、委托者、敌人首领等）时必须调用，记录身份/位置/关系/备注；再次遇到同一 NPC 时调用以更新关系与位置。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "NPC 名字，如 老亨利"},
+                    "identity": {"type": "string", "description": "身份，如 醉龙酒馆老板"},
+                    "location": {"type": "string", "description": "所在位置，如 醉龙酒馆"},
+                    "relationship": {"type": "string", "description": "与玩家的关系：陌生/认识/友好/敌对，默认 陌生"},
+                    "notes": {"type": "string", "description": "备注（1 句话）：外貌、说过的重要信息等"},
+                },
+                "required": ["name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "accept_quest",
             "description": "玩家接下告示栏任务（available -> accepted 待办）。玩家在告示板/委托处表示接受任务时必须调用；不接受口头确认，以调用为准。",
             "parameters": {
@@ -786,6 +830,9 @@ def execute_tool(name: str, args: dict, character: dict | None = None) -> dict:
         if name == "post_quest":
             return post_quest(character, args["title"], args.get("description", ""),
                               args.get("reward", ""), args.get("status", "available"))
+        if name == "register_npc":
+            return register_npc(character, args["name"], args.get("identity", ""),
+                                args.get("location", ""), args.get("relationship", "陌生"), args.get("notes", ""))
         if name == "accept_quest":
             return accept_quest(character, args["title"])
         if name == "buy_item":

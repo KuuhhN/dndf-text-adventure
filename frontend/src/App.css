@@ -1168,6 +1168,7 @@ button.ghost {
 
 .quick-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -1265,6 +1266,31 @@ button.ghost {
   border-bottom: 1px dashed #6b4f2a;
   padding-bottom: 4px;
 }
+
+.modal-empty {
+  color: #a89a78;
+  font-size: 13px;
+  padding: 12px 4px;
+}
+
+.npc-identity {
+  color: #a89a78;
+  font-size: 13px;
+}
+
+.npc-rel {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  border: 1px solid;
+}
+
+.npc-rel.陌生 { color: #b8b0a0; border-color: #6a6355; }
+.npc-rel.认识 { color: #8ab4e8; border-color: #3a5a80; }
+.npc-rel.友好 { color: #7fc97f; border-color: #3a6a3a; }
+.npc-rel.敌对 { color: #e08080; border-color: #8a3a3a; }
 
 .modal-item {
   display: flex;

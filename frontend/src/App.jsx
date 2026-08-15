@@ -932,6 +932,10 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
             📜 任务{hasQuestNotice ? `·${availableQuests.length}` : ""}
           </button>
           <button onClick={() => openModal("shop")} disabled={busy} title="商店（金币购买）">🏪 商店</button>
+          <button onClick={() => openModal("npcs")} disabled={busy} title="认识的角色档案"
+            className={c.npcs?.length > 0 ? "notice" : ""}>
+            🧑🤝🧑 认识的人{c.npcs?.length > 0 ? `·${c.npcs.length}` : ""}
+          </button>
           <button onClick={() => openModal("skills")} disabled={busy} title="查看全部技能">🎯 技能</button>
           <button onClick={() => !busy && sendText("我想掷一个 D20 骰子。")} disabled={busy} title="任何时候都可检定">🎲 掷骰</button>
           <button onClick={() => !busy && sendText("我环顾四周，仔细观察周围的环境。")} disabled={busy || inCombat} title="非战斗时可用（新环境/可疑线索）">🔍 察觉</button>
@@ -958,6 +962,7 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
               <h3>
                 {modal === "quests" && "📜 任务"}
                 {modal === "shop" && "🏪 商店"}
+                {modal === "npcs" && "🧑🤝🧑 认识的人"}
                 {modal === "skills" && "🎯 技能"}
               </h3>
               <button className="modal-close" onClick={() => setModal(null)}>✕</button>
@@ -999,6 +1004,22 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
                     </div>
                     <button className="modal-btn" onClick={() => buyItem(it.name)}
                       disabled={buying || (c.gold ?? 0) < it.price}>{buying ? "购买中…" : "购买"}</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {modal === "npcs" && (
+              <div className="modal-body">
+                {!c.npcs?.length && <p className="modal-empty">还没有认识的人——遇到有名字的角色时，DM 会自动记录他们的档案。</p>}
+                {(c.npcs || []).map((n, i) => (
+                  <div key={i} className="modal-item">
+                    <div>
+                      <b>{n.name}</b>
+                      {n.identity && <span className="npc-identity"> · {n.identity}</span>}
+                      <span className={`npc-rel ${n.relationship || "陌生"}`}>{n.relationship || "陌生"}</span>
+                      {n.location && <div className="modal-desc">📍 {n.location}</div>}
+                      {n.notes && <div className="modal-desc">💬 {n.notes}</div>}
+                    </div>
                   </div>
                 ))}
               </div>

@@ -233,6 +233,7 @@ def create_character(
         "combat": {"enemies": [], "feature_uses": {}, "rage": False},
         "quests": [],
         "gold": 0,
+        "npcs": [],
         "passives": [],
     }
     from .tools import init_feature_uses, init_passives  # 循环导入防护：tools 也 import character

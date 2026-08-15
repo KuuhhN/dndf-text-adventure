@@ -19,6 +19,7 @@ from app.tools import (
     execute_tool,
     lookup,
     post_quest,
+    register_npc,
     remove_item,
     roll,
     tool_result_message,
@@ -243,6 +244,29 @@ def test_add_item_gold_accumulates():
     assert c["inventory"] == []  # 金币不进背包
     add_item(c, "50 金币", quantity=30)  # 名称含『金币』同样累计
     assert c["gold"] == 80
+
+
+def test_register_npc_add_and_update():
+    """NPC 记录：新增 + 同名更新（关系/位置刷新），空名报错。"""
+    c = create_character("T", "Human", "Fighter")
+    r = register_npc(c, "老亨利", "醉龙酒馆老板", "醉龙酒馆", "陌生", "大胡子，嗓门洪亮")
+    assert r["npc"]["name"] == "老亨利" and c["npcs"][0]["identity"] == "醉龙酒馆老板"
+    # 同名更新：关系/位置/备注刷新，不新增
+    r2 = register_npc(c, "老亨利", relationship="友好", notes="帮我们打听过矿洞消息")
+    assert len(c["npcs"]) == 1
+    assert c["npcs"][0]["relationship"] == "友好"
+    assert c["npcs"][0]["notes"] == "帮我们打听过矿洞消息"
+    assert "已更新" in r2["note"]
+    # 空名报错
+    try:
+        register_npc(c, "  ")
+        assert False, "应报错"
+    except ValueError as e:
+        assert "不能为空" in str(e)
+    # execute_tool 路由
+    r3 = execute_tool("register_npc", {"name": "神秘陌生人", "identity": "兜帽旅人",
+                                       "relationship": "陌生", "notes": "递过一张羊皮纸"}, c)
+    assert r3["npc"]["name"] == "神秘陌生人" and len(c["npcs"]) == 2
 
 
 def test_accept_quest_flow():
