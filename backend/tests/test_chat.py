@@ -51,6 +51,10 @@ def test_game_chat_tool_round_trip():
     types = [e["type"] for e in events]
     assert "tool" in types and "delta" in types
 
+    # state 事件：攻击后敌人可能存活 → in_combat 为 True（战斗状态引擎判定）
+    state_evt = next(e for e in events if e["type"] == "state")
+    assert state_evt["in_combat"] is True
+
     tool_evt = next(e for e in events if e["type"] == "tool")
     assert tool_evt["call"]["name"] == "attack"
     assert tool_evt["call"]["arguments"] == '{"target": "Goblin"}'

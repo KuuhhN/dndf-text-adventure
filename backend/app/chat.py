@@ -153,16 +153,17 @@ async def game_chat(session_id: str, message: str) -> AsyncIterator[dict]:
     except LLMStreamError as e:
         # 流中断/额度：友好提示，行动已在聊天里，玩家重发即可
         yield {"type": "error", "text": str(e)}
+        yield {"type": "state", "in_combat": bool(character.get("combat", {}).get("enemies"))}  # 工具副作用可能已改变战斗状态
         assistant_text = ""  # 丢弃半截叙事，避免存脏历史
         return
+
+    # 持久化对话历史（供存档与上下文；先落库再发 state，避免断连丢历史）
+    game.append_history(session_id, "user", message)
+    if assistant_text:
+        game.append_history(session_id, "assistant", assistant_text)
 
     if assistant_text:
         yield {"type": "delta", "text": assistant_text}
 
     # 行动状态（前端按钮场景化）：战斗状态 = 有存活敌人
-    yield {"type": "state", "in_combat": bool(game.get_session(session_id)["character"].get("combat", {}).get("enemies"))}
-
-    # 持久化对话历史（供存档与上下文）
-    game.append_history(session_id, "user", message)
-    if assistant_text:
-        game.append_history(session_id, "assistant", assistant_text)
+    yield {"type": "state", "in_combat": bool(character.get("combat", {}).get("enemies"))}
