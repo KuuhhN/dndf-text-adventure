@@ -778,7 +778,7 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
   async function acceptQuest(title) {
     setModalMsg("");
     try {
-      const r = await fetch("/api/quests/accept", {
+      const r = await fetch(`${API}/api/quests/accept`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sessionId, title }),
@@ -797,7 +797,7 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
     setBuying(true);
     setModalMsg("");
     try {
-      const r = await fetch("/api/shop/buy", {
+      const r = await fetch(`${API}/api/shop/buy`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sessionId, item, quantity: 1 }),
