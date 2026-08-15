@@ -322,6 +322,15 @@ def test_equipment_flow():
         assert False, "应报错"
     except ValueError as e:
         assert "没有装备" in str(e)
+    # 同槽重复装备同款拒绝（review should-fix：防丢物品）
+    add_item(c, "皮甲", "轻便护甲", 1)  # 背包再有一件皮甲
+    try:
+        equip_item(c, "皮甲", "armor")  # armor 槽已装备皮甲
+        assert False, "应报错"
+    except ValueError as e:
+        assert "已装备" in str(e)
+    assert c["equipment"]["armor"] == "皮甲"
+    assert sum(it["quantity"] for it in c["inventory"] if it["name"] == "皮甲") == 1  # 背包物品不丢
     # execute_tool 路由
     r3 = execute_tool("equip_item", {"item": "匕首", "slot": "armor"}, c)
     assert r3["equipment"]["armor"] == "匕首"

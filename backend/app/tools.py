@@ -308,6 +308,9 @@ def equip_item(character: dict, item: str, slot: str) -> dict:
         raise ValueError(f"背包中没有 {item}")
     equip = _equipment(character)
     replaced = equip.get(slot)
+    if replaced == item:
+        # 同槽重复装备同款：无意义且会扣背包物品，直接拒绝（review should-fix：防丢物品）
+        raise ValueError(f"{EQUIP_SLOT_ZH[slot]}槽位已装备【{item}】")
     # 从背包扣 1 件（同名合并的物品扣数量）
     found["quantity"] -= 1
     if found["quantity"] <= 0:
