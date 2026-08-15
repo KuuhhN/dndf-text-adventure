@@ -270,6 +270,17 @@ def test_register_npc_add_and_update():
         assert False, "应报错"
     except ValueError as e:
         assert "不能为空" in str(e)
+    # 字段长度上限（security MEDIUM：防存储型 prompt 注入）
+    try:
+        register_npc(c, "名字" * 30)  # 60 字 > 50
+        assert False, "应报错"
+    except ValueError as e:
+        assert "名称过长" in str(e)
+    try:
+        register_npc(c, "路人甲", notes="注" * 501)
+        assert False, "应报错"
+    except ValueError as e:
+        assert "备注过长" in str(e)
     # execute_tool 路由
     r3 = execute_tool("register_npc", {"name": "神秘陌生人", "identity": "兜帽旅人",
                                        "relationship": "陌生", "notes": "递过一张羊皮纸"}, c)

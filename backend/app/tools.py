@@ -102,10 +102,16 @@ def _npcs(character: dict) -> list[dict]:
 def register_npc(character: dict, name: str, identity: str = "", location: str = "",
                  relationship: str = "", notes: str = "") -> dict:
     """记录/更新 NPC 档案：遇到有名字或重要互动的角色时调用。同名更新（位置/关系/备注刷新）。"""
-    if not name.strip():
+    name = (name or "").strip()
+    if not name:
         raise ValueError("NPC 名称不能为空")
+    if len(name) > 50:
+        raise ValueError("NPC 名称过长（≤50 字）")
+    for field, label, limit in ((identity, "身份", 50), (location, "位置", 50),
+                                (relationship, "关系", 50), (notes, "备注", 500)):
+        if len(field or "") > limit:
+            raise ValueError(f"{label}过长（≤{limit} 字）")
     npcs = _npcs(character)
-    name = name.strip()
     for n in npcs:
         if n["name"] == name:
             if identity:
