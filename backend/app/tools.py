@@ -309,9 +309,30 @@ def _equipment(character: dict) -> dict:
     return character.setdefault("equipment", {"weapon": None, "armor": None, "trinket": None})
 
 
+def _equipment_stats(character: dict) -> dict:
+    """装备数值缓存：equip 时从物品/SHOP_ITEMS 提取，供 attack/AC 使用（装备移出背包后数值仍在）。"""
+    return character.setdefault("equipment_stats", {})
+
+
 def _spec_stats(character: dict, item: str) -> dict:
-    """查物品数值（SHOP_ITEMS 精确匹配；非商店物品返回空）。"""
+    """查物品数值：物品自带官方数值（AI 生成）> SHOP_ITEMS 精确匹配；否则空。"""
+    for it in _inventory(character):
+        if it.get("name") == item and (it.get("damage") or it.get("ac_bonus")):
+            return it
     return next((s for s in SHOP_ITEMS if s.get("name") == item), {}) or {}
+
+
+def _item_numeric_stats(character: dict, item: str) -> dict:
+    """提取装备数值（damage/ac_bonus/quality/trait），来源：背包物品字段 > SHOP_ITEMS。"""
+    entry = _spec_stats(character, item)
+    return {
+        "damage": entry.get("damage", ""),
+        "ac_bonus": entry.get("ac_bonus", 0),
+        "quality": entry.get("quality", ""),
+        "damage_bonus": entry.get("damage_bonus", 0),
+        "trait_name": entry.get("trait_name", ""),
+        "trait_damage": entry.get("trait_damage", ""),
+    }
 
 
 def equip_item(character: dict, item: str, slot: str) -> dict:
@@ -330,21 +351,30 @@ def equip_item(character: dict, item: str, slot: str) -> dict:
     if replaced == item:
         # 同槽重复装备同款：无意义且会扣背包物品，直接拒绝（review should-fix：防丢物品）
         raise ValueError(f"{EQUIP_SLOT_ZH[slot]}槽位已装备【{item}】")
+    # 先提取数值（物品仍在背包），再扣物品
+    stats = _item_numeric_stats(character, item)
     # 从背包扣 1 件（同名合并的物品扣数量）
     found["quantity"] -= 1
     if found["quantity"] <= 0:
         items.remove(found)
-    # 旧装备回背包（合并数量）+ 回退其 AC 加成
+    # 旧装备回背包（合并数量）+ 回退其 AC 加成（读 stats 缓存）
     if replaced and replaced != item:
         add_item(character, replaced, quantity=1)
-        character["ac"] = character.get("ac", 10) - _spec_stats(character, replaced).get("ac_bonus", 0)
+        old_stats = (character.get("equipment_stats") or {}).get(slot) or {}
+        character["ac"] = character.get("ac", 10) - old_stats.get("ac_bonus", 0)
     equip[slot] = item
-    ac_bonus = _spec_stats(character, item).get("ac_bonus", 0)
+    # 缓存装备数值（背包物品字段 > SHOP_ITEMS）
+    _equipment_stats(character)[slot] = stats
+    ac_bonus = stats.get("ac_bonus", 0)
     if ac_bonus:
         character["ac"] = character.get("ac", 10) + ac_bonus
     note = f"已装备【{item}】到{EQUIP_SLOT_ZH[slot]}"
     if ac_bonus:
         note += f"（AC {character['ac']}）"
+    if stats.get("damage"):
+        note += f"（{stats['damage']} 伤害）"
+    if stats.get("quality"):
+        note += f"（{stats['quality']}）"
     if replaced and replaced != item:
         note += f"，{replaced} 已放回背包"
     return {"type": "equipment", "slot": slot, "item": item, "equipment": equip,
@@ -361,28 +391,55 @@ def unequip_item(character: dict, slot: str) -> dict:
     if not item:
         raise ValueError(f"{EQUIP_SLOT_ZH[slot]}槽位没有装备")
     equip[slot] = None
-    ac_bonus = _spec_stats(character, item).get("ac_bonus", 0)
+    stats = (character.get("equipment_stats") or {}).get(slot) or {}
+    ac_bonus = stats.get("ac_bonus", 0)
     if ac_bonus:
         character["ac"] = character.get("ac", 10) - ac_bonus
+    _equipment_stats(character).pop(slot, None)  # 清除数值缓存
     add_item(character, item, quantity=1)  # 回背包（同名合并）
     return {"type": "equipment", "slot": slot, "item": None, "equipment": equip,
             "ac": character.get("ac"), "note": f"已卸下【{item}】，放回背包"}
 
 
-def add_item(character: dict, name: str, description: str = "", quantity: int = 1) -> dict:
+def add_item(character: dict, name: str, description: str = "", quantity: int = 1,
+             damage: str = "", ac_bonus: int = 0, quality: str = "") -> dict:
     """获得物品入背包：同名合并数量。返回最新背包状态。
-    金币（名称含『金币』）不入背包，直接累计到 gold 字段。"""
-    if quantity < 1:
-        raise ValueError("数量必须为正整数")
+    金币（名称含『金币』）不入背包，直接累计到 gold 字段。
+    装备数值（damage/ac_bonus/quality）由引擎按官方 SRD 白名单校验——AI 可生成特定装备（如家族传承物），
+    但数值必须符合官方（damage ∈ SRD 骰面、ac_bonus ∈ 官方 AC、quality 三档），非法拒绝。"""
+    if not isinstance(quantity, int) or isinstance(quantity, bool) or not (1 <= quantity <= 99):
+        raise ValueError("数量必须是 1-99 的整数")
     if "金币" in name:
         character["gold"] = _gold(character) + quantity
         return {"type": "gold", "gold": character["gold"], "note": f"获得 {quantity} 金币"}
+    # 装备数值官方校验（security：AI 生成装备数值必须符合官方，防 1d999 任意伤害）
+    if damage:
+        damage = damage.strip().lower()
+        if damage not in db.official_damage_dice():
+            raise ValueError(f"伤害骰不是官方数值: {damage}（请查 SRD 装备数据）")
+    if ac_bonus:
+        if isinstance(ac_bonus, bool) or not isinstance(ac_bonus, int) or ac_bonus not in db.official_armor_ac():
+            raise ValueError(f"护甲 AC 加值不是官方数值: {ac_bonus}")
+    if quality and quality not in ("普通", "精良", "稀有"):
+        raise ValueError(f"品质必须是：普通/精良/稀有")
     items = _inventory(character)
     for it in items:
         if it["name"] == name:
             it["quantity"] += quantity
+            if damage:  # 同名合并时数值字段保持一致（取新值）
+                it["damage"] = damage
+            if ac_bonus:
+                it["ac_bonus"] = ac_bonus
+            if quality:
+                it["quality"] = quality
             return {"type": "inventory", "item": it, "total": len(items), "note": "数量增加"}
     item = {"name": name, "description": description, "quantity": quantity}
+    if damage:
+        item["damage"] = damage
+    if ac_bonus:
+        item["ac_bonus"] = ac_bonus
+    if quality:
+        item["quality"] = quality
     items.append(item)
     return {"type": "inventory", "item": item, "total": len(items), "note": "新物品入包"}
 
@@ -494,18 +551,16 @@ def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
         enemy = {"name": target, "max_hp": monster.get("hit_points", 1),
                  "hp": monster.get("hit_points", 1), "ac": _monster_ac(monster)}
         combat["enemies"].append(enemy)
-    # 装备武器数值（引擎裁定，LLM 不能改骰子）：名字匹配 SHOP_ITEMS 且有 damage 字段
+    # 装备武器数值（引擎裁定，LLM 不能改骰子）：equipment_stats 缓存（物品官方数值/SHOP_ITEMS）> 默认
     equip_weapon = (character.get("equipment") or {}).get("weapon")
-    spec = None
-    if equip_weapon:
-        spec = next((s for s in SHOP_ITEMS if s.get("name") == equip_weapon and "damage" in s), None)
-    if spec:
-        weapon_dice = spec["damage"]
-        quality_bonus = spec.get("damage_bonus", 0)
-        trait_name = spec.get("trait_name", "")
-        trait_dice = spec.get("trait_damage", "")
+    stats = (character.get("equipment_stats") or {}).get("weapon") or {}
+    if stats.get("damage"):
+        weapon_dice = stats["damage"]
+        quality_bonus = stats.get("damage_bonus", 0) or {"精良": 1, "稀有": 2}.get(stats.get("quality", ""), 0)
+        trait_name = stats.get("trait_name", "")
+        trait_dice = stats.get("trait_damage", "")
     else:
-        # 无装备武器：引擎默认 1d8，不信任 LLM 传参（security：防任意伤害/刷经验）
+        # 无有效武器数值：引擎默认 1d8，不信任 LLM 传参（security：防任意伤害/刷经验）
         weapon_dice = "1d8"
         quality_bonus = 0
         trait_name = ""
@@ -1081,13 +1136,16 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "add_item",
-            "description": "物品入背包。玩家获得/拾取/购买/搜刮到物品（战利品、药水、任务物品、金币外的财物）时必须调用，记录名称/简述/数量。",
+            "description": "物品入背包。玩家获得/拾取/购买/搜刮到物品（战利品、药水、任务物品、金币外的财物）时必须调用，记录名称/简述/数量。生成武器/护甲类装备时（含特定/传承物品）必须传官方数值：damage 用 SRD 官方伤害骰（如战斧 1d12、长剑 1d8、匕首 1d4），ac_bonus 用官方护甲 AC 加值（如皮甲 1、链甲衫 3、盾牌 2），quality 可选（普通/精良/稀有，精良伤害+1 稀有+2）；非法数值会被拒绝。",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "物品名（中文），如 治疗药水"},
+                    "name": {"type": "string", "description": "物品名（中文），如 治疗药水 / 祖传战斧"},
                     "description": {"type": "string", "description": "物品简述（1 句话）"},
-                    "quantity": {"type": "integer", "description": "数量，默认 1"},
+                    "quantity": {"type": "integer", "description": "数量，默认 1（1-99）"},
+                    "damage": {"type": "string", "description": "官方伤害骰（武器类必传），如 1d12"},
+                    "ac_bonus": {"type": "integer", "description": "官方护甲 AC（护甲类必传），如 11、13、2"},
+                    "quality": {"type": "string", "enum": ["普通", "精良", "稀有"], "description": "品质，默认普通"},
                 },
                 "required": ["name"],
             },
@@ -1180,7 +1238,8 @@ def execute_tool(name: str, args: dict, character: dict | None = None) -> dict:
         if name == "buy_item":
             return buy_item(character, args["item"], args.get("quantity", 1))
         if name == "add_item":
-            return add_item(character, args["name"], args.get("description", ""), args.get("quantity", 1))
+            return add_item(character, args["name"], args.get("description", ""), args.get("quantity", 1),
+                            args.get("damage", ""), args.get("ac_bonus", 0), args.get("quality", ""))
         if name == "remove_item":
             return remove_item(character, args["name"], args.get("quantity", 1))
         if name == "use_feature":

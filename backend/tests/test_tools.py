@@ -278,6 +278,46 @@ def test_change_location_flow():
     assert all(1 <= it["level"] <= 3 for it in SHOP_ITEMS) if SHOP_ITEMS else True
 
 
+def test_ai_generated_equipment():
+    """AI 生成特定装备：官方数值白名单校验（合法通过/非法拒绝）+ 装备生效 + 品质加成。"""
+    from app.tools import add_item, equip_item, attack, encounter, execute_tool
+    # 合法：祖传战斧（官方 1d12）+ 稀有品质
+    c = create_character("T", "Human", "Fighter")
+    r = add_item(c, "祖传战斧", "家族传承的巨斧，斧柄刻着祖训", 1, damage="1d12", quality="稀有")
+    assert r["item"]["damage"] == "1d12" and r["item"]["quality"] == "稀有"
+    equip_item(c, "祖传战斧", "weapon")
+    encounter(c, ["Goblin"])
+    from unittest.mock import patch
+    with patch("app.tools.roll", return_value={"rolls": [20], "total": 20, "crit": False, "fumble": False}):
+        r2 = attack(c, "Goblin")
+    assert r2["weapon_dice"] == "1d12" and r2["quality_bonus"] == 2, "稀有品质 +2"
+    # 非法骰面拒绝（防任意伤害）
+    try:
+        add_item(c, "屠龙刀", "虚构神兵", 1, damage="1d999+999")
+        assert False, "应报错"
+    except ValueError as e:
+        assert "官方" in str(e)
+    # 非法 AC 拒绝
+    try:
+        add_item(c, "无敌甲", "虚构护甲", 1, ac_bonus=99)
+        assert False, "应报错"
+    except ValueError as e:
+        assert "官方" in str(e)
+    # 合法护甲（皮甲官方 AC 11）+ 装备生效
+    c2 = create_character("T2", "Human", "Fighter")
+    base = c2["ac"]
+    add_item(c2, "家族皮甲", "祖传皮甲，护心镜有家徽", 1, ac_bonus=1)
+    equip_item(c2, "家族皮甲", "armor")
+    assert c2["ac"] == base + 1, "官方 AC 11 → 加值 +1"
+    # execute_tool 路由透传
+    c3 = create_character("T3", "Human", "Fighter")
+    r3 = execute_tool("add_item", {"name": "精良手斧", "damage": "1d6", "quality": "精良"}, c3)
+    assert r3["item"]["damage"] == "1d6" and r3["item"]["quality"] == "精良"
+    # 非法经 execute_tool 转错误结果
+    r4 = execute_tool("add_item", {"name": "神兵", "damage": "1d999"}, c3)
+    assert isinstance(r4, dict) and "error" in r4
+
+
 def test_equipment_stats():
     """装备数值：武器伤害骰引擎裁定（装备优先）+ 品质加成/词条 + 护甲 AC 增减。"""
     from app.tools import equip_item, unequip_item, attack

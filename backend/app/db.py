@@ -44,6 +44,41 @@ def get_class(name): return get_item("classes", name)
 def get_spell(name): return get_item("spells", name)
 def get_monster(name): return get_item("monsters", name)
 def get_equipment(name): return get_item("equipment", name)
+
+
+_OFFICIAL_DAMAGE: frozenset[str] | None = None
+_OFFICIAL_AC: frozenset[int] | None = None
+
+
+def official_damage_dice() -> frozenset[str]:
+    """官方武器伤害骰白名单（从 SRD equipment 表提取，运行时缓存）。"""
+    global _OFFICIAL_DAMAGE
+    if _OFFICIAL_DAMAGE is None:
+        dice = set()
+        with _conn() as c:
+            rows = c.execute('SELECT data FROM "equipment"').fetchall()
+        for r in rows:
+            dmg = json.loads(r["data"]).get("damage")
+            if isinstance(dmg, dict) and dmg.get("damage_dice"):
+                dice.add(dmg["damage_dice"])
+        _OFFICIAL_DAMAGE = frozenset(dice)
+    return _OFFICIAL_DAMAGE
+
+
+def official_armor_ac() -> frozenset[int]:
+    """官方护甲 AC 加值白名单（SRD armor_class.base - 10，含盾牌 +2）。"""
+    global _OFFICIAL_AC
+    if _OFFICIAL_AC is None:
+        acs = set()
+        with _conn() as c:
+            rows = c.execute('SELECT data FROM "equipment"').fetchall()
+        for r in rows:
+            ac = json.loads(r["data"]).get("armor_class")
+            if isinstance(ac, dict) and isinstance(ac.get("base"), int):
+                acs.add(ac["base"] - 10)
+        acs.add(2)  # 盾牌（SRD 盾牌 armor_class 为 {base:2, dex_bonus:false}，直接是加值）
+        _OFFICIAL_AC = frozenset(acs)
+    return _OFFICIAL_AC
 def list_races(): return list_names("races")
 def list_classes(): return list_names("classes")
 

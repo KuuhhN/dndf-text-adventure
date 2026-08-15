@@ -1142,6 +1142,12 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
                     <div>
                       <b>{it.name}</b>
                       {it.quantity > 1 && <span className="inv-qty"> ×{it.quantity}</span>}
+                      {it.quality && <span className={`item-quality q-${it.quality}`}>{it.quality}</span>}
+                      {(it.damage || it.ac_bonus) && (
+                        <span className="shop-price">
+                          {it.damage ? ` ⚔️${it.damage}` : ""}{it.ac_bonus ? ` 🛡️AC+${it.ac_bonus}` : ""}
+                        </span>
+                      )}
                       {it.description && <div className="modal-desc">{it.description}</div>}
                     </div>
                     <div className="inv-equip">
