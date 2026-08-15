@@ -100,23 +100,25 @@ def _npcs(character: dict) -> list[dict]:
 
 
 def register_npc(character: dict, name: str, identity: str = "", location: str = "",
-                 relationship: str = "陌生", notes: str = "") -> dict:
+                 relationship: str = "", notes: str = "") -> dict:
     """记录/更新 NPC 档案：遇到有名字或重要互动的角色时调用。同名更新（位置/关系/备注刷新）。"""
     if not name.strip():
         raise ValueError("NPC 名称不能为空")
     npcs = _npcs(character)
+    name = name.strip()
     for n in npcs:
         if n["name"] == name:
             if identity:
                 n["identity"] = identity
             if location:
                 n["location"] = location
-            n["relationship"] = relationship
+            if relationship:
+                n["relationship"] = relationship
             if notes:
                 n["notes"] = notes
             return {"type": "npc", "npc": n, "note": f"已更新 {name} 的档案"}
     npc = {"name": name, "identity": identity, "location": location,
-           "relationship": relationship, "notes": notes}
+           "relationship": relationship or "陌生", "notes": notes}
     npcs.append(npc)
     return {"type": "npc", "npc": npc, "note": f"已记录 {name}"}
 

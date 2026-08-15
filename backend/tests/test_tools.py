@@ -257,6 +257,13 @@ def test_register_npc_add_and_update():
     assert c["npcs"][0]["relationship"] == "友好"
     assert c["npcs"][0]["notes"] == "帮我们打听过矿洞消息"
     assert "已更新" in r2["note"]
+    # 只更新位置时关系保持不变（review should-fix：不得静默重置为陌生）
+    r3 = register_npc(c, "老亨利", location="市政厅")
+    assert c["npcs"][0]["relationship"] == "友好", "关系应保留"
+    assert c["npcs"][0]["location"] == "市政厅"
+    # 名称带空格也能匹配已有档案（strip 匹配）
+    r4 = register_npc(c, " 老亨利 ", relationship="敌对")
+    assert len(c["npcs"]) == 1 and c["npcs"][0]["relationship"] == "敌对"
     # 空名报错
     try:
         register_npc(c, "  ")
