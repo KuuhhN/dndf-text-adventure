@@ -278,6 +278,59 @@ def test_change_location_flow():
     assert all(1 <= it["level"] <= 3 for it in SHOP_ITEMS) if SHOP_ITEMS else True
 
 
+def test_equipment_stats():
+    """装备数值：武器伤害骰引擎裁定（装备优先）+ 品质加成/词条 + 护甲 AC 增减。"""
+    from app.tools import equip_item, unequip_item, attack
+    c = create_character("T", "Human", "Fighter")
+    base_ac = c["ac"]
+    # 装备匕首：attack 用 1d4（LLM 传 1d12 也被引擎覆盖）
+    add_item(c, "匕首", "灵巧武器", 1)
+    equip_item(c, "匕首", "weapon")
+    add_item(c, "哥布林", "测试怪", 1)  # 怪用 encounter 拉入
+    from app.tools import encounter
+    encounter(c, ["Goblin"])
+    r = attack(c, "Goblin", weapon_dice="1d12")
+    assert r["weapon_dice"] == "1d4" and r["weapon"] == "匕首", "装备匕首应强制 1d4"
+    assert r["quality_bonus"] == 0
+    # 无装备：回退调用方参数（向后兼容）
+    c2 = create_character("T2", "Human", "Fighter")
+    encounter(c2, ["Goblin"])
+    r2 = attack(c2, "Goblin", weapon_dice="1d6")
+    assert r2["weapon_dice"] == "1d6" and r2["weapon"] == ""
+    # 精良长剑：1d8 + 品质 +1
+    c3 = create_character("T3", "Human", "Fighter")
+    add_item(c3, "精良长剑", "精钢锻造", 1)
+    equip_item(c3, "精良长剑", "weapon")
+    encounter(c3, ["Goblin"])
+    r3 = attack(c3, "Goblin")
+    assert r3["weapon_dice"] == "1d8" and r3["quality_bonus"] == 1
+    # 稀有匕首：1d4 +2 + 淬毒词条（命中时 trait_proc）
+    c4 = create_character("T4", "Human", "Fighter")
+    c4["abilities"]["STR"] = 8  # 低力量保证命中由骰子决定（用 patch）
+    add_item(c4, "稀有匕首", "淬毒黑曜", 1)
+    equip_item(c4, "稀有匕首", "weapon")
+    encounter(c4, ["Goblin"])
+    r4 = attack(c4, "Goblin")
+    assert r4["weapon_dice"] == "1d4" and r4["quality_bonus"] == 2
+    assert r4["trait"] == "淬毒"
+    if r4["hit"]:
+        assert "trait_proc" in r4 and r4["damage"] >= 3  # 1d4 基础 +2 品质 + 1d4 毒素
+    # 护甲 AC：皮甲 +1、盾牌 +2、替换回退、卸下还原
+    c5 = create_character("T5", "Human", "Fighter")
+    base5 = c5["ac"]
+    add_item(c5, "皮甲", "轻便护甲", 1)
+    equip_item(c5, "皮甲", "armor")
+    assert c5["ac"] == base5 + 1, "皮甲 AC +1"
+    add_item(c5, "链甲衫", "重型", 1)
+    equip_item(c5, "链甲衫", "armor")  # 替换：皮甲回包 + AC 回退
+    assert c5["ac"] == base5 + 3, "链甲衫 AC +3（皮甲加成已回退）"
+    add_item(c5, "盾牌", "木盾", 1)
+    equip_item(c5, "盾牌", "trinket")
+    assert c5["ac"] == base5 + 5, "盾牌 AC +2 叠加"
+    unequip_item(c5, "armor")
+    assert c5["ac"] == base5 + 2, "卸下链甲衫 AC 回退"
+
+
 def test_opening_and_start_location():
     """初始场景：opening 文本落库 + start_location 生效 + 非法区域回退酒馆 + prompt 动态开篇。"""
     from app.chat import build_system_prompt

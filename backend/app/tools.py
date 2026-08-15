@@ -261,23 +261,36 @@ def register_npc(character: dict, name: str, identity: str = "", location: str =
 
 # 酒馆/商店精选商品（D&D 5e 官方价格，中文名；价格由引擎定，防前端改包）
 SHOP_ITEMS = [
-    # 等级 1：村庄货（酒馆/村庄集市）
+    # 等级 1：村庄货（酒馆/村庄集市）——品质：普通
     {"name": "治疗药水", "price": 50, "level": 1, "desc": "饮下恢复 2d4+2 点生命值"},
-    {"name": "匕首", "price": 2, "level": 1, "desc": "灵巧近战/投掷武器，1d4 穿刺"},
-    {"name": "皮甲", "price": 10, "level": 1, "desc": "轻型护甲，AC 11 + 敏捷调整值"},
-    {"name": "盾牌", "price": 10, "level": 1, "desc": "AC +2"},
+    {"name": "匕首", "price": 2, "level": 1, "quality": "普通", "damage": "1d4",
+     "desc": "灵巧近战/投掷武器，伤害 1d4 穿刺"},
+    {"name": "皮甲", "price": 10, "level": 1, "quality": "普通", "ac_bonus": 1,
+     "desc": "轻型护甲，AC 基础 +1（敏捷另有加成）"},
+    {"name": "盾牌", "price": 10, "level": 1, "quality": "普通", "ac_bonus": 2,
+     "desc": "持盾格挡，AC +2"},
     {"name": "盗贼工具", "price": 25, "level": 1, "desc": "开锁与解除陷阱检定时可获熟练加值"},
     {"name": "火把", "price": 1, "level": 1, "desc": "照明 18 米"},
     {"name": "口粮（1 天）", "price": 5, "level": 1, "desc": "冒险口粮，一天份"},
     {"name": "水袋", "price": 2, "level": 1, "desc": "装 1.8 升水"},
-    # 等级 2：城镇货（矿洞镇/法师塔/海岸城）
-    {"name": "长剑", "price": 15, "level": 2, "desc": "军用近战武器，1d8 挥砍（可双手 1d10）"},
-    {"name": "短弓", "price": 25, "level": 2, "desc": "远程武器，1d6 穿刺（射程 24/96 米）"},
-    {"name": "链甲衫", "price": 50, "level": 2, "desc": "中型护甲，AC 13 + 敏捷（至多 +2）"},
+    # 等级 2：城镇货（矿洞镇/法师塔/海岸城）——品质：精良（伤害 +1）
+    {"name": "长剑", "price": 15, "level": 2, "quality": "普通", "damage": "1d8",
+     "desc": "军用近战武器，伤害 1d8 挥砍（可双手 1d10）"},
+    {"name": "精良长剑", "price": 60, "level": 2, "quality": "精良", "damage": "1d8", "damage_bonus": 1,
+     "desc": "精钢锻造的长剑，伤害 1d8+1 挥砍"},
+    {"name": "短弓", "price": 25, "level": 2, "quality": "普通", "damage": "1d6",
+     "desc": "远程武器，伤害 1d6 穿刺（射程 24/96 米）"},
+    {"name": "精良短弓", "price": 80, "level": 2, "quality": "精良", "damage": "1d6", "damage_bonus": 1,
+     "desc": "角木层压短弓，伤害 1d6+1 穿刺"},
+    {"name": "链甲衫", "price": 50, "level": 2, "quality": "精良", "ac_bonus": 3,
+     "desc": "中型护甲，AC 基础 +3（敏捷至多 +2）"},
     {"name": "照明杖", "price": 2, "level": 2, "desc": "点燃后照明 36 米，持续 1 小时"},
     {"name": "绳子（15 米）", "price": 1, "level": 2, "desc": "麻绳，攀爬/捆缚用"},
     {"name": "圣水（小瓶）", "price": 25, "level": 2, "desc": "对不死生物投掷造成 2d6 光耀伤害"},
-    # 等级 3：都城货（王都）
+    # 等级 3：都城货（王都）——品质：稀有（伤害 +2 + 特殊词条）
+    {"name": "稀有匕首", "price": 150, "level": 3, "quality": "稀有", "damage": "1d4", "damage_bonus": 2,
+     "trait_name": "淬毒", "trait_damage": "1d4",
+     "desc": "刃口淬毒的黑曜匕首，伤害 1d4+2，命中附加 1d4 毒素（淬毒）"},
     {"name": "法术卷轴（燃烧之手）", "price": 75, "level": 3, "desc": "1 环法术卷轴，读咒释放（需仪式时间）"},
     {"name": "放大镜", "price": 100, "level": 3, "desc": "观察细小物体时优势（辨识物品/文书）"},
 ]
@@ -296,8 +309,14 @@ def _equipment(character: dict) -> dict:
     return character.setdefault("equipment", {"weapon": None, "armor": None, "trinket": None})
 
 
+def _spec_stats(character: dict, item: str) -> dict:
+    """查物品数值（SHOP_ITEMS 精确匹配；非商店物品返回空）。"""
+    return next((s for s in SHOP_ITEMS if s.get("name") == item), {}) or {}
+
+
 def equip_item(character: dict, item: str, slot: str) -> dict:
-    """装备物品：从背包放入指定槽位（weapon/armor/trinket）。同槽位已有装备自动回包。"""
+    """装备物品：从背包放入指定槽位（weapon/armor/trinket）。同槽位已有装备自动回包。
+    护甲/盾牌按引擎数值增减 AC（ac_bonus）；武器伤害骰由 attack 读取（damage/品质/词条）。"""
     item = (item or "").strip()
     slot = (slot or "").strip()
     if slot not in EQUIP_SLOTS:
@@ -315,18 +334,25 @@ def equip_item(character: dict, item: str, slot: str) -> dict:
     found["quantity"] -= 1
     if found["quantity"] <= 0:
         items.remove(found)
-    # 旧装备回背包（合并数量）
+    # 旧装备回背包（合并数量）+ 回退其 AC 加成
     if replaced and replaced != item:
         add_item(character, replaced, quantity=1)
+        character["ac"] = character.get("ac", 10) - _spec_stats(character, replaced).get("ac_bonus", 0)
     equip[slot] = item
+    ac_bonus = _spec_stats(character, item).get("ac_bonus", 0)
+    if ac_bonus:
+        character["ac"] = character.get("ac", 10) + ac_bonus
     note = f"已装备【{item}】到{EQUIP_SLOT_ZH[slot]}"
+    if ac_bonus:
+        note += f"（AC {character['ac']}）"
     if replaced and replaced != item:
         note += f"，{replaced} 已放回背包"
-    return {"type": "equipment", "slot": slot, "item": item, "equipment": equip, "note": note}
+    return {"type": "equipment", "slot": slot, "item": item, "equipment": equip,
+            "ac": character.get("ac"), "note": note}
 
 
 def unequip_item(character: dict, slot: str) -> dict:
-    """卸下装备：从槽位放回背包。"""
+    """卸下装备：从槽位放回背包。护甲/盾牌回退 AC 加成。"""
     slot = (slot or "").strip()
     if slot not in EQUIP_SLOTS:
         raise ValueError(f"装备槽位必须是：{'/'.join(EQUIP_SLOTS)}")
@@ -335,9 +361,12 @@ def unequip_item(character: dict, slot: str) -> dict:
     if not item:
         raise ValueError(f"{EQUIP_SLOT_ZH[slot]}槽位没有装备")
     equip[slot] = None
+    ac_bonus = _spec_stats(character, item).get("ac_bonus", 0)
+    if ac_bonus:
+        character["ac"] = character.get("ac", 10) - ac_bonus
     add_item(character, item, quantity=1)  # 回背包（同名合并）
     return {"type": "equipment", "slot": slot, "item": None, "equipment": equip,
-            "note": f"已卸下【{item}】，放回背包"}
+            "ac": character.get("ac"), "note": f"已卸下【{item}】，放回背包"}
 
 
 def add_item(character: dict, name: str, description: str = "", quantity: int = 1) -> dict:
@@ -453,6 +482,7 @@ def encounter(character: dict, monsters: list[str]) -> dict:
 def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
     """近战攻击：D20 + 力量修正 + 熟练 vs 目标 AC；命中后掷武器伤害。
 
+    武器伤害骰由引擎裁定：已装备武器（含品质加成/词条）优先，未装备回退调用方参数。
     副作用：扣敌人 HP；击杀后移除敌人并加经验；经验达标自动升级。
     """
     combat = _combat(character)
@@ -464,6 +494,20 @@ def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
         enemy = {"name": target, "max_hp": monster.get("hit_points", 1),
                  "hp": monster.get("hit_points", 1), "ac": _monster_ac(monster)}
         combat["enemies"].append(enemy)
+    # 装备武器数值（引擎裁定，LLM 不能改骰子）：名字匹配 SHOP_ITEMS 且有 damage 字段
+    equip_weapon = (character.get("equipment") or {}).get("weapon")
+    spec = None
+    if equip_weapon:
+        spec = next((s for s in SHOP_ITEMS if s.get("name") == equip_weapon and "damage" in s), None)
+    if spec:
+        weapon_dice = spec["damage"]
+        quality_bonus = spec.get("damage_bonus", 0)
+        trait_name = spec.get("trait_name", "")
+        trait_dice = spec.get("trait_damage", "")
+    else:
+        quality_bonus = 0
+        trait_name = ""
+        trait_dice = ""
     ac = enemy["ac"]
     to_hit = _modifier(character, "STR") + character["proficiency_bonus"]
     r = roll("1d20")
@@ -478,7 +522,11 @@ def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
         "hit": hit,
         "crit": r.get("crit", False),
         "weapon_dice": weapon_dice,
+        "weapon": equip_weapon or "",
+        "quality_bonus": quality_bonus,
     }
+    if trait_name:
+        result["trait"] = trait_name
     if hit:
         dmg = roll(weapon_dice)
         if r.get("crit", False):  # 重击：伤害骰翻倍
@@ -498,6 +546,12 @@ def attack(character: dict, target: str, weapon_dice: str = "1d8") -> dict:
         if _combat(character).get("rage"):
             result["damage"] += 2  # 狂暴：近战伤害 +2
             result["rage_bonus"] = True
+        if quality_bonus:  # 品质加成（精良 +1 / 稀有 +2）
+            result["damage"] += quality_bonus
+        if trait_name and trait_dice:  # 特殊词条（如淬毒）：额外掷一次
+            td = roll(trait_dice)
+            result["damage"] += td["total"]
+            result["trait_proc"] = f"{trait_name} +{td['total']}"
         enemy["hp"] -= result["damage"]
         result["target_hp"] = enemy["hp"]
         if enemy["hp"] <= 0:  # 击杀：移除（按对象，同名不误杀）+ 经验

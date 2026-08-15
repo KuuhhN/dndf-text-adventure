@@ -1556,6 +1556,20 @@ button.ghost {
   margin-left: 4px;
 }
 
+/* 物品品质徽章 */
+.item-quality {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  border: 1px solid;
+}
+
+.q-普通 { color: #b8b0a0; border-color: #6a6355; }
+.q-精良 { color: #8ab4e8; border-color: #3a5a80; }
+.q-稀有 { color: #d8a0e8; border-color: #7a3a8a; }
+
 .skills-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

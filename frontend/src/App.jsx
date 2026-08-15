@@ -1037,7 +1037,9 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
                 {shopItems.filter((it) => it.level <= shopLevel).map((it, i) => (
                   <div key={i} className="modal-item">
                     <div>
-                      <b>{it.name}</b> <span className="shop-price">{it.price} 金币</span>
+                      <b>{it.name}</b>
+                      {it.quality && <span className={`item-quality q-${it.quality}`}>{it.quality}</span>}
+                      <span className="shop-price">{it.price} 金币</span>
                       <div className="modal-desc">{it.desc}</div>
                     </div>
                     <button className="modal-btn" onClick={() => buyItem(it.name)}
