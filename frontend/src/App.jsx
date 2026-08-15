@@ -323,6 +323,8 @@ function App() {
           sendText={sendText}
           bottomRef={bottomRef}
           onNewGame={() => { setSession(null); setInCombat(false); }}
+          sessionId={session.id}
+          onCharacterUpdate={(ch) => setSession((prev) => ({ ...prev, character: ch }))}
         />
       )}
       <div id="runtime-error" className="runtime-error" />
@@ -757,8 +759,49 @@ function formatTool(evt) {
   }
 }
 
-function GameView({ character, messages, input, busy, inCombat, setInput, send, sendText, bottomRef, onNewGame }) {
+function GameView({ character, messages, input, busy, inCombat, setInput, send, sendText, bottomRef, onNewGame, sessionId, onCharacterUpdate }) {
   const c = character;
+  const [modal, setModal] = useState(null); // null | "quests" | "shop" | "skills"
+  const [shopItems, setShopItems] = useState([]);
+  const [modalMsg, setModalMsg] = useState("");
+
+  function openModal(name) {
+    setModalMsg("");
+    if (name === "shop" && shopItems.length === 0) {
+      fetch("/api/shop").then((r) => r.json()).then((d) => setShopItems(d.items || [])).catch(() => {});
+    }
+    setModal(name);
+  }
+
+  async function acceptQuest(title) {
+    setModalMsg("");
+    const r = await fetch("/api/quests/accept", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, title }),
+    });
+    const d = await r.json();
+    if (!r.ok) return setModalMsg(`❌ ${d.error || "操作失败"}`);
+    onCharacterUpdate(d.character);
+    setModalMsg(`✅ ${d.result?.note || "已接下"}`);
+  }
+
+  async function buyItem(item) {
+    setModalMsg("");
+    const r = await fetch("/api/shop/buy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, item, quantity: 1 }),
+    });
+    const d = await r.json();
+    if (!r.ok) return setModalMsg(`❌ ${d.error || "购买失败"}`);
+    onCharacterUpdate(d.character);
+    setModalMsg(`✅ ${d.result?.note || "购买成功"}`);
+  }
+
+  const availableQuests = (c.quests || []).filter((q) => q.status !== "accepted");
+  const todoQuests = (c.quests || []).filter((q) => q.status === "accepted");
+  const hasQuestNotice = availableQuests.length > 0;
   return (
     <div className="game">
       <aside className="sheet">
@@ -832,25 +875,9 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
               ))}
             </div>
           )}
-        {c.quests?.length > 0 && (
-          <div className="quest-board">
-            <h3>📜 任务告示</h3>
-            {c.quests.map((q, i) => (
-              <div key={i} className={`quest-note ${q.status === "accepted" ? "accepted" : ""}`}>
-                <div className="pin" />
-                <div className="quest-title">{q.title}</div>
-                {q.reward && <span className="quest-reward">💰 {q.reward}</span>}
-                {q.description && <div className="quest-desc">{q.description}</div>}
-                <span className={`quest-status ${q.status}`}>
-                  {q.status === "accepted" ? "已接下" : "悬赏中"}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
         {c.inventory?.length > 0 && (
           <div className="inventory">
-            <h3>🎒 背包</h3>
+            <h3>🎒 背包 {c.gold > 0 && <small>· 💰 {c.gold} 金币</small>}</h3>
             {c.inventory.map((it, i) => (
               <div key={i} className="inv-item" title={it.description || ""}>
                 <span className="inv-name">{it.name}</span>
@@ -870,17 +897,6 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
             </div>
           ))}
         </div>
-        <div className="skills">
-          <h3>🎯 技能 <small>（冒险中自动触发检定，可主动提出）</small></h3>
-          {Object.entries(c.skills).map(([sk, val]) => (
-            <button key={sk} className="skill" disabled={busy} title={SKILL_HINTS[sk] || ""}
-              onClick={() => sendText(`我想过个【${t(sk)}】检定（${SKILL_HINTS[sk] || ""}），看看能发现什么`)}>
-              <span className={c.proficient_skills?.includes(sk) ? "prof" : ""}>{t(sk)}{c.proficient_skills?.includes(sk) ? "✓" : ""}</span>
-              <small className="skill-hint">{SKILL_HINTS[sk] || ""}</small>
-              <span className={val >= 0 ? "pos" : "neg"}>{val >= 0 ? "+" : ""}{val}</span>
-            </button>
-          ))}
-        </div>
         <button className="ghost" onClick={onNewGame}>＋ 新冒险</button>
       </aside>
       <main className="chat">
@@ -897,6 +913,12 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
       </main>
       <footer className="input-bar">
         <div className="quick-actions">
+          <button onClick={() => openModal("quests")} disabled={busy} title="告示栏与待办"
+            className={hasQuestNotice ? "notice" : ""}>
+            📜 任务{hasQuestNotice ? `·${availableQuests.length}` : ""}
+          </button>
+          <button onClick={() => openModal("shop")} disabled={busy} title="商店（金币购买）">🏪 商店</button>
+          <button onClick={() => openModal("skills")} disabled={busy} title="查看全部技能">🎯 技能</button>
           <button onClick={() => !busy && sendText("我想掷一个 D20 骰子。")} disabled={busy} title="任何时候都可检定">🎲 掷骰</button>
           <button onClick={() => !busy && sendText("我环顾四周，仔细观察周围的环境。")} disabled={busy || inCombat} title="非战斗时可用（新环境/可疑线索）">🔍 察觉</button>
           <button onClick={() => !busy && sendText("我压低身形，尝试潜行靠近。")} disabled={busy || inCombat} title="非战斗时可用（需视野遮挡）">🕶️ 潜行</button>
@@ -915,6 +937,78 @@ function GameView({ character, messages, input, busy, inCombat, setInput, send, 
           </button>
         </div>
       </footer>
+      {modal && (
+        <div className="modal-overlay" onClick={() => setModal(null)}>
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>
+                {modal === "quests" && "📜 任务"}
+                {modal === "shop" && "🏪 商店"}
+                {modal === "skills" && "🎯 技能"}
+              </h3>
+              <button className="modal-close" onClick={() => setModal(null)}>✕</button>
+            </div>
+            {modalMsg && <div className="modal-msg">{modalMsg}</div>}
+            {modal === "quests" && (
+              <div className="modal-body">
+                <h4>📌 告示栏{availableQuests.length === 0 && "（暂无悬赏）"}</h4>
+                {availableQuests.map((q, i) => (
+                  <div key={`a${i}`} className="modal-item">
+                    <div>
+                      <b>{q.title}</b>
+                      {q.reward && <span className="quest-reward"> 💰 {q.reward}</span>}
+                      {q.description && <div className="modal-desc">{q.description}</div>}
+                    </div>
+                    <button className="modal-btn" onClick={() => acceptQuest(q.title)}>接受</button>
+                  </div>
+                ))}
+                <h4>✅ 待办{todoQuests.length === 0 && "（尚未接受任务）"}</h4>
+                {todoQuests.map((q, i) => (
+                  <div key={`t${i}`} className="modal-item todo">
+                    <div>
+                      <b>{q.title}</b>
+                      {q.reward && <span className="quest-reward"> 💰 {q.reward}</span>}
+                      {q.description && <div className="modal-desc">{q.description}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {modal === "shop" && (
+              <div className="modal-body">
+                <div className="shop-gold">💰 金币：{c.gold ?? 0}</div>
+                {shopItems.map((it, i) => (
+                  <div key={i} className="modal-item">
+                    <div>
+                      <b>{it.name}</b> <span className="shop-price">{it.price} 金币</span>
+                      <div className="modal-desc">{it.desc}</div>
+                    </div>
+                    <button className="modal-btn" onClick={() => buyItem(it.name)}
+                      disabled={(c.gold ?? 0) < it.price}>购买</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {modal === "skills" && (
+              <div className="modal-body skills-grid">
+                {Object.entries(c.skills).map(([sk, val]) => (
+                  <button key={sk} className="modal-skill" title={SKILL_HINTS[sk] || ""}
+                    onClick={() => {
+                      setModal(null);
+                      sendText(`我想过个【${t(sk)}】检定（${SKILL_HINTS[sk] || ""}），看看能发现什么`);
+                    }}>
+                    <span className={c.proficient_skills?.includes(sk) ? "prof" : ""}>
+                      {t(sk)}{c.proficient_skills?.includes(sk) ? "✓" : ""}
+                    </span>
+                    <small>{SKILL_HINTS[sk] || ""}</small>
+                    <em className={val >= 0 ? "pos" : "neg"}>{val >= 0 ? "+" : ""}{val}</em>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

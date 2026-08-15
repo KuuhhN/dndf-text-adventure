@@ -10,8 +10,10 @@ from app.character import create_character
 from app.tools import (
     TOOLS,
     ability_check,
+    accept_quest,
     add_item,
     attack,
+    buy_item,
     encounter,
     enemy_attack,
     execute_tool,
@@ -231,6 +233,55 @@ def test_add_item_merges_quantity():
     assert len(c["inventory"]) == 1
     add_item(c, "长剑", "精制铁剑", 1)
     assert len(c["inventory"]) == 2
+
+
+def test_add_item_gold_accumulates():
+    """金币不入背包，直接累计 gold 字段（战利品/任务奖励）。"""
+    c = create_character("T", "Human", "Fighter")
+    r = add_item(c, "金币", quantity=50)
+    assert r["type"] == "gold" and c["gold"] == 50
+    assert c["inventory"] == []  # 金币不进背包
+    add_item(c, "50 金币", quantity=30)  # 名称含『金币』同样累计
+    assert c["gold"] == 80
+
+
+def test_accept_quest_flow():
+    """接受任务：available -> accepted（待办）；幂等；不存在报错。"""
+    c = create_character("T", "Human", "Fighter")
+    post_quest(c, "幽影矿洞的怪声", "查明真相", "50 金币")
+    r = accept_quest(c, "幽影矿洞的怪声")
+    assert r["quest"]["status"] == "accepted" and "已接下" in r["note"]
+    r2 = accept_quest(c, "幽影矿洞的怪声")  # 幂等
+    assert "已在待办" in r2["note"] and c["quests"][0]["status"] == "accepted"
+    try:
+        accept_quest(c, "不存在的任务")
+        assert False, "应报错"
+    except ValueError as e:
+        assert "告示栏没有" in str(e)
+
+
+def test_buy_item_flow():
+    """购买：按引擎定价扣金币入包；余额不足/未知商品/非法数量报错。"""
+    c = create_character("T", "Human", "Fighter")
+    c["gold"] = 100
+    r = buy_item(c, "治疗药水", 1)  # 50 金币
+    assert r["gold"] == 50 and r["cost"] == 50
+    assert c["inventory"] == [{"name": "治疗药水", "description": "饮下恢复 2d4+2 点生命值", "quantity": 1}]
+    try:
+        buy_item(c, "治疗药水", 2)  # 需要 100，只剩 50
+        assert False, "应报错"
+    except ValueError as e:
+        assert "金币不足" in str(e)
+    try:
+        buy_item(c, "屠龙宝刀", 1)  # 未知商品
+        assert False, "应报错"
+    except ValueError as e:
+        assert "商店没有" in str(e)
+    try:
+        buy_item(c, "火把", 0)
+        assert False, "应报错"
+    except ValueError as e:
+        assert "1-99" in str(e)
 
 
 def test_remove_item_consume_and_discard():

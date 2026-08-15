@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from . import db, game
 from .chat import game_chat
 from .character import create_character
+from .tools import SHOP_ITEMS, accept_quest, buy_item
 
 app = FastAPI(title="DNDF Text Adventure API")
 
@@ -22,6 +23,17 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     session_id: str
     message: str
+
+
+class QuestAcceptRequest(BaseModel):
+    session_id: str
+    title: str
+
+
+class ShopBuyRequest(BaseModel):
+    session_id: str
+    item: str
+    quantity: int = 1
 
 
 class CreateCharacterRequest(BaseModel):
@@ -119,6 +131,47 @@ def get_session(sid: str):
 @app.get("/api/sessions")
 def sessions():
     return {"sessions": game.list_sessions()}
+
+
+@app.get("/api/shop")
+def shop():
+    """商店商品清单（引擎定价）。"""
+    return {"items": SHOP_ITEMS}
+
+
+def _load_session_or_404(sid: str):
+    s = game.get_session(sid)
+    if not s:
+        return None, JSONResponse({"error": "会话不存在"}, status_code=404)
+    return s, None
+
+
+@app.post("/api/quests/accept")
+def accept_quest_api(req: QuestAcceptRequest):
+    """弹窗接受任务：available -> accepted（待办）。"""
+    s, err = _load_session_or_404(req.session_id)
+    if err:
+        return err
+    try:
+        result = accept_quest(s["character"], req.title)
+        game.update_character(req.session_id, s["character"])
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    return {"result": result, "character": s["character"]}
+
+
+@app.post("/api/shop/buy")
+def shop_buy_api(req: ShopBuyRequest):
+    """弹窗购买：按引擎定价扣金币入背包。"""
+    s, err = _load_session_or_404(req.session_id)
+    if err:
+        return err
+    try:
+        result = buy_item(s["character"], req.item, req.quantity)
+        game.update_character(req.session_id, s["character"])
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    return {"result": result, "character": s["character"]}
 
 
 @app.post("/api/chat")

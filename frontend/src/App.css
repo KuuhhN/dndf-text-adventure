@@ -1191,6 +1191,185 @@ button.ghost {
   cursor: not-allowed;
 }
 
+.quick-actions button.notice {
+  border-color: #c9a227;
+  background: #3a2f15;
+  color: #ffd76a;
+  font-weight: 700;
+}
+
+/* 弹窗（任务/商店/技能） */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 5, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-panel {
+  background: linear-gradient(180deg, #2e2318, #241b11);
+  border: 2px solid #8a6a3a;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  width: min(560px, 92vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  font-family: "KaiTi", "STKaiti", serif;
+}
+
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid #6b4f2a;
+}
+
+.modal-head h3 {
+  margin: 0;
+  color: #f0e2c0;
+  font-size: 18px;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: #d8b46a;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.modal-msg {
+  margin: 10px 18px 0;
+  padding: 8px 12px;
+  background: #3a2f15;
+  border: 1px solid #c9a227;
+  border-radius: 8px;
+  color: #ffd76a;
+  font-size: 13px;
+}
+
+.modal-body {
+  padding: 12px 18px 18px;
+  overflow-y: auto;
+}
+
+.modal-body h4 {
+  color: #d8b46a;
+  margin: 12px 0 6px;
+  font-size: 14px;
+  border-bottom: 1px dashed #6b4f2a;
+  padding-bottom: 4px;
+}
+
+.modal-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  margin: 6px 0;
+  background: #241b11;
+  border: 1px solid #4a3a22;
+  border-radius: 8px;
+  color: #e8dcc0;
+}
+
+.modal-item.todo {
+  border-left: 3px solid #5a9a5a;
+}
+
+.modal-desc {
+  font-size: 12px;
+  color: #a89a78;
+  margin-top: 2px;
+}
+
+.quest-reward {
+  color: #ffd76a;
+  font-size: 12px;
+}
+
+.modal-btn {
+  flex-shrink: 0;
+  padding: 5px 16px;
+  border-radius: 12px;
+  border: 1px solid #c9a227;
+  background: #3a2f15;
+  color: #ffd76a;
+  cursor: pointer;
+}
+
+.modal-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.modal-btn:hover:not(:disabled) {
+  background: #4a3a1c;
+}
+
+.shop-gold {
+  color: #ffd76a;
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.shop-price {
+  color: #ffd76a;
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.modal-skill {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  text-align: left;
+  border: 1px solid #4a3a22;
+  border-radius: 8px;
+  background: #241b11;
+  color: #e8dcc0;
+  cursor: pointer;
+}
+
+.modal-skill:hover {
+  border-color: #c9a227;
+}
+
+.modal-skill span.prof {
+  color: #ffd76a;
+}
+
+.modal-skill small {
+  font-size: 11px;
+  color: #a89a78;
+}
+
+.modal-skill em {
+  font-style: normal;
+  font-size: 12px;
+}
+
+.modal-skill em.pos {
+  color: #6fcf6f;
+}
+
+.modal-skill em.neg {
+  color: #d46a6a;
+}
+
 .input-row {
   display: flex;
   gap: 10px;

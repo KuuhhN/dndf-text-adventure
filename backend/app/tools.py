@@ -91,14 +91,43 @@ def _quests(character: dict) -> list[dict]:
     return character.setdefault("quests", [])
 
 
+def _gold(character: dict) -> int:
+    return character.setdefault("gold", 0)
+
+
+# 酒馆/商店精选商品（D&D 5e 官方价格，中文名；价格由引擎定，防前端改包）
+SHOP_ITEMS = [
+    {"name": "治疗药水", "price": 50, "desc": "饮下恢复 2d4+2 点生命值"},
+    {"name": "长剑", "price": 15, "desc": "军用近战武器，1d8 挥砍（可双手 1d10）"},
+    {"name": "匕首", "price": 2, "desc": "灵巧近战/投掷武器，1d4 穿刺"},
+    {"name": "短弓", "price": 25, "desc": "远程武器，1d6 穿刺（射程 24/96 米）"},
+    {"name": "皮甲", "price": 10, "desc": "轻型护甲，AC 11 + 敏捷调整值"},
+    {"name": "链甲衫", "price": 50, "desc": "中型护甲，AC 13 + 敏捷（至多 +2）"},
+    {"name": "盾牌", "price": 10, "desc": "AC +2"},
+    {"name": "盗贼工具", "price": 25, "desc": "开锁与解除陷阱检定时可获熟练加值"},
+    {"name": "法术卷轴（燃烧之手）", "price": 75, "desc": "1 环法术卷轴，读咒释放（需仪式时间）"},
+    {"name": "照明杖", "price": 2, "desc": "点燃后照明 36 米，持续 1 小时"},
+    {"name": "火把", "price": 1, "desc": "照明 18 米"},
+    {"name": "绳子（15 米）", "price": 1, "desc": "麻绳，攀爬/捆缚用"},
+    {"name": "口粮（1 天）", "price": 5, "desc": "冒险口粮，一天份"},
+    {"name": "水袋", "price": 2, "desc": "装 1.8 升水"},
+    {"name": "放大镜", "price": 100, "desc": "观察细小物体时优势（辨识物品/文书）"},
+    {"name": "圣水（小瓶）", "price": 25, "desc": "对不死生物投掷造成 2d6 光耀伤害"},
+]
+
+
 def _inventory(character: dict) -> list[dict]:
     return character.setdefault("inventory", [])
 
 
 def add_item(character: dict, name: str, description: str = "", quantity: int = 1) -> dict:
-    """获得物品入背包：同名合并数量。返回最新背包状态。"""
+    """获得物品入背包：同名合并数量。返回最新背包状态。
+    金币（名称含『金币』）不入背包，直接累计到 gold 字段。"""
     if quantity < 1:
         raise ValueError("数量必须为正整数")
+    if "金币" in name:
+        character["gold"] = _gold(character) + quantity
+        return {"type": "gold", "gold": character["gold"], "note": f"获得 {quantity} 金币"}
     items = _inventory(character)
     for it in items:
         if it["name"] == name:
@@ -140,6 +169,33 @@ def post_quest(
     quest = {"title": title, "description": description, "reward": reward, "status": status}
     quests.append(quest)
     return {"type": "quest", "quest": quest}
+
+
+def accept_quest(character: dict, title: str) -> dict:
+    """接受告示栏任务：available -> accepted（进入待办）。幂等：已接受的直接返回。"""
+    for q in _quests(character):
+        if q["title"] == title:
+            if q["status"] == "accepted":
+                return {"type": "quest", "quest": q, "note": "任务已在待办中"}
+            q["status"] = "accepted"
+            return {"type": "quest", "quest": q, "note": "已接下任务"}
+    raise ValueError(f"告示栏没有这个任务: {title}")
+
+
+def buy_item(character: dict, item: str, quantity: int = 1) -> dict:
+    """商店购买：按引擎定价扣金币并入背包。价格不信任调用方，查 SHOP_ITEMS 定价。"""
+    if not isinstance(quantity, int) or not (1 <= quantity <= 99):
+        raise ValueError("数量必须是 1-99 的整数")
+    spec = next((s for s in SHOP_ITEMS if s["name"] == item), None)
+    if not spec:
+        raise ValueError(f"商店没有这件商品: {item}")
+    cost = spec["price"] * quantity
+    if _gold(character) < cost:
+        raise ValueError(f"金币不足（需要 {cost}，现有 {_gold(character)}）")
+    character["gold"] -= cost
+    add_item(character, item, spec["desc"], quantity)
+    return {"type": "shop", "item": spec["name"], "quantity": quantity, "cost": cost,
+            "gold": character["gold"], "note": f"购得 {spec['name']} ×{quantity}"}
 
 
 def encounter(character: dict, monsters: list[str]) -> dict:
@@ -620,6 +676,35 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "accept_quest",
+            "description": "玩家接下告示栏任务（available -> accepted 待办）。玩家在告示板/委托处表示接受任务时必须调用；不接受口头确认，以调用为准。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "任务标题，须与 post_quest 时一致"},
+                },
+                "required": ["title"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "buy_item",
+            "description": "商店购买：按定价扣金币并入库。玩家在商店/酒馆购买商品时调用（价格引擎定，勿自报）。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item": {"type": "string", "description": "商品名（中文），如 治疗药水"},
+                    "quantity": {"type": "integer", "description": "数量，默认 1（1-99）"},
+                },
+                "required": ["item"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "add_item",
             "description": "物品入背包。玩家获得/拾取/购买/搜刮到物品（战利品、药水、任务物品、金币外的财物）时必须调用，记录名称/简述/数量。",
             "parameters": {
@@ -701,6 +786,10 @@ def execute_tool(name: str, args: dict, character: dict | None = None) -> dict:
         if name == "post_quest":
             return post_quest(character, args["title"], args.get("description", ""),
                               args.get("reward", ""), args.get("status", "available"))
+        if name == "accept_quest":
+            return accept_quest(character, args["title"])
+        if name == "buy_item":
+            return buy_item(character, args["item"], args.get("quantity", 1))
         if name == "add_item":
             return add_item(character, args["name"], args.get("description", ""), args.get("quantity", 1))
         if name == "remove_item":
