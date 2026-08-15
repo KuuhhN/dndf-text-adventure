@@ -344,14 +344,14 @@ def test_ai_generated_equipment():
     del c5["equipment_stats"]
     unequip_item(c5, "armor")
     assert c5["ac"] == base5, "旧存档卸下应完全回退"
-    # 旧存档攻击回退：无缓存时装备武器不降级（SHOP_ITEMS 匹配）
+    # 旧存档攻击回退：无缓存时装备武器不降级（SHOP_ITEMS 匹配，匕首 1d4 区分默认 1d8）
     c6 = create_character("T6", "Human", "Fighter")
-    add_item(c6, "长剑", "普通长剑", 1)
-    equip_item(c6, "长剑", "weapon")
+    add_item(c6, "匕首", "灵巧武器", 1)
+    equip_item(c6, "匕首", "weapon")
     del c6["equipment_stats"]  # 模拟旧存档
     encounter(c6, ["Goblin"])
     r6 = attack(c6, "Goblin")
-    assert r6["weapon_dice"] == "1d8", "旧存档装备长剑应读 SHOP_ITEMS 1d8 不降级"
+    assert r6["weapon_dice"] == "1d4", "旧存档装备匕首应读 SHOP_ITEMS 1d4 不降级"
 
 
 def test_equipment_stats():
